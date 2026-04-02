@@ -1,8 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Get a free hosted Postgres database in seconds: `npx create-db`
-
 generator client {
   provider = "prisma-client"
   output   = "../src/generated/prisma"
@@ -10,4 +5,61 @@ generator client {
 
 datasource db {
   provider = "postgresql"
+}
+
+enum MediaType {
+  ANIME
+  MANGA
+  TV
+  MOVIE
+}
+
+enum TrackingStatus {
+  WATCHING
+  COMPLETED
+  DROPPED
+  PAUSED
+  PLAN_TO_WATCH
+}
+
+model Media {
+  id            String    @id @default(cuid())
+  externalId    String
+  source        String    // "anilist" or "tmdb"
+  mediaType     MediaType
+  title         String
+  titleEnglish  String?
+  description   String?   @db.Text
+  coverImage    String?
+  totalEpisodes    Int?
+  releasedEpisodes Int?
+  totalChapters    Int?
+  releaseYear      Int?
+  status        String?   // "RELEASING", "FINISHED", etc.
+
+  tracking      Tracking?
+
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@unique([externalId, source])
+}
+
+model Tracking {
+  id             String         @id @default(cuid())
+  mediaId        String         @unique
+  media          Media          @relation(fields: [mediaId], references: [id], onDelete: Cascade)
+
+  status         TrackingStatus @default(WATCHING)
+  currentEpisode Int            @default(0)
+  currentChapter Int            @default(0)
+
+  rating         Int?
+  notes          String?        @db.Text
+
+  startedAt      DateTime?
+  completedAt    DateTime?
+
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
 }
