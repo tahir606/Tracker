@@ -3,8 +3,10 @@
 import { useState } from "react";
 import { MediaCard } from "./media-card";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { STATUS_LABELS, STATUS_ORDER } from "@/lib/constants";
+import { SECTION_LABELS, SECTION_ORDER } from "@/lib/constants";
+import { getLibrarySection } from "@/lib/library-section";
 import type { TrackedMedia } from "@/types";
+import type { NextEpisodeInfo } from "@/app/page";
 
 const TYPE_FILTERS = [
   { value: "ALL", label: "All" },
@@ -16,8 +18,10 @@ const TYPE_FILTERS = [
 
 export function DashboardClient({
   initialMedia,
+  nextEpisodeMap,
 }: {
   initialMedia: TrackedMedia[];
+  nextEpisodeMap: Record<string, NextEpisodeInfo>;
 }) {
   const [typeFilter, setTypeFilter] = useState("ALL");
 
@@ -26,10 +30,19 @@ export function DashboardClient({
       ? initialMedia
       : initialMedia.filter((m) => m.mediaType === typeFilter);
 
-  const grouped = STATUS_ORDER.map((status) => ({
-    status,
-    label: STATUS_LABELS[status],
-    items: filtered.filter((m) => m.tracking?.status === status),
+  const sectionOf = (m: TrackedMedia) => {
+    const live = nextEpisodeMap[m.id];
+    return getLibrarySection(m, {
+      hasUpcomingEpisode: Boolean(live?.nextAiring),
+      airedEpisodes: live?.airedEpisodes,
+      runStatus: live?.runStatus,
+    });
+  };
+
+  const grouped = SECTION_ORDER.map((section) => ({
+    status: section,
+    label: SECTION_LABELS[section],
+    items: filtered.filter((m) => sectionOf(m) === section),
   })).filter((g) => g.items.length > 0);
 
   return (
@@ -65,7 +78,7 @@ export function DashboardClient({
             </h2>
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {group.items.map((item) => (
-                <MediaCard key={item.id} media={item} />
+                <MediaCard key={item.id} media={item} nextEpisode={nextEpisodeMap[item.id]} />
               ))}
             </div>
           </section>

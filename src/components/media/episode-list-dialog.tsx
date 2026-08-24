@@ -198,6 +198,21 @@ interface EpisodeListDialogProps {
   mediaTitle: string;
   currentEpisode: number;
   onEpisodeUpdate: (epNumber: number) => void;
+  seasons?: { seasonNumber: number; episodeCount: number }[];
+}
+
+function toSeasonEp(
+  absEp: number,
+  seasons: { seasonNumber: number; episodeCount: number }[]
+): { season: number; episode: number } | null {
+  let cumulative = 0;
+  for (const s of seasons) {
+    if (absEp <= cumulative + s.episodeCount) {
+      return { season: s.seasonNumber, episode: absEp - cumulative };
+    }
+    cumulative += s.episodeCount;
+  }
+  return null;
 }
 
 export function EpisodeListDialog({
@@ -205,6 +220,7 @@ export function EpisodeListDialog({
   mediaTitle,
   currentEpisode,
   onEpisodeUpdate,
+  seasons,
 }: EpisodeListDialogProps) {
   const [open, setOpen] = useState(false);
   const [page, setPage] = useState(1);
@@ -220,10 +236,16 @@ export function EpisodeListDialog({
   // Jump to the correct page and reset scroll flag when dialog opens
   useEffect(() => {
     if (open) {
-      // For Jikan: 100 episodes per page → ceil(ep / 100)
-      // For TMDB: page = season, we default to 1 (no episode→season map upfront)
-      const jumpPage =
-        localCurrentEp > 0 ? Math.ceil(localCurrentEp / 100) : 1;
+      const nextEp = localCurrentEp + 1;
+      let jumpPage: number;
+      if (seasons?.length) {
+        // TMDB: page = season number — jump to the season containing the next episode
+        const se = toSeasonEp(nextEp, seasons);
+        jumpPage = se ? se.season : 1;
+      } else {
+        // Jikan: 100 episodes per page
+        jumpPage = Math.ceil(nextEp / 100);
+      }
       setPage(jumpPage);
       hasAutoScrolledRef.current = false;
     }
@@ -259,18 +281,21 @@ export function EpisodeListDialog({
     }
   }, [open, page, fetchEpisodes]);
 
-  // Scroll to current episode once after first load per open session
+  // Scroll to next episode once after first load per open session
   useEffect(() => {
     if (!loading && data && listRef.current && !hasAutoScrolledRef.current) {
       hasAutoScrolledRef.current = true;
       const timer = setTimeout(() => {
         const container = listRef.current;
+        const nextEp = localCurrentEp + 1;
+        // For TMDB, ep.number is within-season; for Jikan it's absolute
+        const scrollTarget = seasons?.length
+          ? (toSeasonEp(nextEp, seasons)?.episode ?? nextEp)
+          : nextEp;
         const el = container?.querySelector(
-          `[data-ep-number="${localCurrentEp}"]`
+          `[data-ep-number="${scrollTarget}"]`
         ) as HTMLElement | null;
         if (container && el) {
-          // scrollIntoView doesn't work inside transformed dialogs,
-          // so we calculate relative offset and set scrollTop directly
           const containerRect = container.getBoundingClientRect();
           const elRect = el.getBoundingClientRect();
           const relativeTop = elRect.top - containerRect.top + container.scrollTop;
@@ -279,7 +304,7 @@ export function EpisodeListDialog({
       }, 120);
       return () => clearTimeout(timer);
     }
-  }, [loading, data, localCurrentEp]);
+  }, [loading, data, localCurrentEp, seasons]);
 
   // Sync prop change
   useEffect(() => {

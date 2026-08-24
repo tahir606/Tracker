@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAniListMedia } from "@/lib/anilist";
-import { getTMDBDetails } from "@/lib/tmdb";
+import { getTMDBDetails, getTMDBEpisodeSchedule } from "@/lib/tmdb";
 
 export async function POST(
   _request: NextRequest,
@@ -38,9 +38,13 @@ export async function POST(
       );
       updateData.totalEpisodes = details.totalEpisodes;
       updateData.status = details.status;
-      // For TV shows all listed episodes are released; keep in sync
       if (media.mediaType === "TV") {
-        updateData.releasedEpisodes = details.totalEpisodes;
+        // number_of_episodes counts announced episodes too, so take the released
+        // count from the last episode that has actually aired.
+        const { airedEpisodes } = await getTMDBEpisodeSchedule(
+          parseInt(media.externalId)
+        );
+        updateData.releasedEpisodes = airedEpisodes;
       }
     }
 

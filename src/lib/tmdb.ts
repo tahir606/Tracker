@@ -1,4 +1,5 @@
 import type { SearchResult } from "@/types";
+import { toAvailableDate } from "@/lib/release-date";
 
 const BASE_URL = "https://api.themoviedb.org/3";
 const IMAGE_BASE = "https://image.tmdb.org/t/p/w500";
@@ -51,6 +52,7 @@ export async function searchTMDB(
       description: item.overview || null,
       coverImage: item.poster_path ? `${IMAGE_BASE}${item.poster_path}` : null,
       totalEpisodes: null, // TMDB search doesn't return episode count
+      releasedEpisodes: null,
       totalChapters: null,
       releaseYear: getYear(item.first_air_date || item.release_date),
       status: null,
@@ -93,7 +95,7 @@ export async function getTMDBSeasonEpisodes(tvId: number, season: number) {
   ).map((ep) => ({
     number: ep.episode_number,
     title: ep.name || null,
-    airDate: ep.air_date || null,
+    airDate: toAvailableDate(ep.air_date),
     synopsis: ep.overview || null,
     thumbnail: ep.still_path
       ? `https://image.tmdb.org/t/p/w300${ep.still_path}`
@@ -109,21 +111,54 @@ type TMDBEpisodeStub = {
   air_date: string | null;
 } | null;
 
-function mapEpisodeStub(ep: TMDBEpisodeStub) {
+function mapEpisodeStub(ep: TMDBEpisodeStub, absoluteNumber: number | null) {
   if (!ep) return null;
   return {
     seasonNumber: ep.season_number,
     episodeNumber: ep.episode_number,
     name: ep.name || null,
-    airDate: ep.air_date || null,
+    airDate: toAvailableDate(ep.air_date),
+    absoluteNumber,
   };
 }
 
 export async function getTMDBEpisodeSchedule(id: number) {
   const data = await tmdbFetch(`/tv/${id}`);
+
+  // Build cumulative episode offsets per season (season >= 1 only)
+  const seasons = (
+    (data.seasons as { season_number: number; episode_count: number }[]) ?? []
+  )
+    .filter((s) => s.season_number >= 1)
+    .sort((a, b) => a.season_number - b.season_number);
+
+  const cumulative: Record<number, number> = {};
+  let total = 0;
+  for (const s of seasons) {
+    total += s.episode_count;
+    cumulative[s.season_number] = total;
+  }
+
+  function toAbsolute(ep: TMDBEpisodeStub): number | null {
+    if (!ep) return null;
+    const offset = ep.season_number > 1 ? (cumulative[ep.season_number - 1] ?? 0) : 0;
+    return offset + ep.episode_number;
+  }
+
+  const last = mapEpisodeStub(
+    data.last_episode_to_air as TMDBEpisodeStub,
+    toAbsolute(data.last_episode_to_air as TMDBEpisodeStub)
+  );
+
   return {
-    next: mapEpisodeStub(data.next_episode_to_air as TMDBEpisodeStub),
-    last: mapEpisodeStub(data.last_episode_to_air as TMDBEpisodeStub),
+    next: mapEpisodeStub(data.next_episode_to_air as TMDBEpisodeStub, toAbsolute(data.next_episode_to_air as TMDBEpisodeStub)),
+    last,
+    seasons: seasons.map((s) => ({ seasonNumber: s.season_number, episodeCount: s.episode_count })),
+    // Live counts, so callers don't have to trust a stored column that was
+    // last written when the show was added.
+    airedEpisodes: last?.absoluteNumber ?? 0,
+    totalEpisodes: (data.number_of_episodes as number | null) ?? null,
+    status: (data.status as string | null) ?? null,
   };
 }
 

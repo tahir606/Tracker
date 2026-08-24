@@ -3,17 +3,49 @@
 import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { Plus } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { StatusBadge } from "./status-badge";
 import { ProgressDisplay } from "./progress-display";
+import { EpisodeListDialog } from "./episode-list-dialog";
 import { MEDIA_TYPE_LABELS } from "@/lib/constants";
+import { getLibrarySection } from "@/lib/library-section";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import type { TrackedMedia } from "@/types";
+import type { NextEpisodeInfo } from "@/app/page";
 
-export function MediaCard({ media }: { media: TrackedMedia }) {
+function formatAirDate(dateStr: string): string {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const [y, m, d] = dateStr.split("-").map(Number);
+  const date = new Date(y, m - 1, d);
+  const days = Math.round((date.getTime() - today.getTime()) / 86_400_000);
+  if (days === 0) return "Today";
+  if (days === 1) return "Tomorrow";
+  if (days > 1) return `in ${days}d`;
+  if (days === -1) return "Yesterday";
+  return `${Math.abs(days)}d ago`;
+}
+
+function pad(n: number) { return String(n).padStart(2, "0"); }
+
+function toSeasonEp(
+  absEp: number,
+  seasons: { seasonNumber: number; episodeCount: number }[]
+): { season: number; episode: number } | null {
+  let cumulative = 0;
+  for (const s of seasons) {
+    if (absEp <= cumulative + s.episodeCount) {
+      return { season: s.seasonNumber, episode: absEp - cumulative };
+    }
+    cumulative += s.episodeCount;
+  }
+  return null;
+}
+
+export function MediaCard({ media, nextEpisode }: { media: TrackedMedia; nextEpisode?: NextEpisodeInfo }) {
+  const router = useRouter();
   const tracking = media.tracking;
   const [currentEp, setCurrentEp] = useState(tracking?.currentEpisode ?? 0);
   const [currentCh, setCurrentCh] = useState(tracking?.currentChapter ?? 0);
@@ -21,6 +53,17 @@ export function MediaCard({ media }: { media: TrackedMedia }) {
 
   const showEpisodes = media.mediaType !== "MANGA";
   const showChapters = media.mediaType === "MANGA";
+
+  // Badge follows the derived section, using the live input value so it updates
+  // before the server refresh moves the card between sections.
+  const section =
+    getLibrarySection(media, {
+      currentEpisode: currentEp,
+      currentChapter: currentCh,
+      hasUpcomingEpisode: Boolean(nextEpisode?.nextAiring),
+      airedEpisodes: nextEpisode?.airedEpisodes,
+      runStatus: nextEpisode?.runStatus,
+    }) ?? status;
 
   async function handleDirectInput(
     field: "currentEpisode" | "currentChapter",
@@ -33,29 +76,8 @@ export function MediaCard({ media }: { media: TrackedMedia }) {
         body: JSON.stringify({ [field]: value }),
       });
       if (!res.ok) throw new Error("Failed");
-    } catch {
-      toast.error("Failed to update");
-    }
-  }
-
-  async function handleIncrement(field: "currentEpisode" | "currentChapter") {
-    try {
-      const res = await fetch(`/api/media/${media.id}/increment`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ field }),
-      });
-      if (!res.ok) throw new Error("Failed");
-      const data = await res.json();
-      if (field === "currentEpisode") {
-        setCurrentEp(data.tracking.currentEpisode);
-      } else {
-        setCurrentCh(data.tracking.currentChapter);
-      }
-      if (data.tracking.status === "COMPLETED") {
-        setStatus("COMPLETED");
-        toast.success("Completed!");
-      }
+      // Re-render the dashboard so the card lands in the right section.
+      router.refresh();
     } catch {
       toast.error("Failed to update");
     }
@@ -81,9 +103,9 @@ export function MediaCard({ media }: { media: TrackedMedia }) {
           )}
         </Link>
 
-        <CardContent className="flex flex-1 flex-col gap-2 p-0">
+        <CardContent className="flex flex-1 flex-col gap-2 p-0 min-w-0">
           <div className="flex items-start justify-between gap-2">
-            <div>
+            <div className="min-w-0">
               <Link
                 href={`/media/${media.id}`}
                 className="font-medium text-sm leading-tight hover:underline line-clamp-2"
@@ -95,7 +117,7 @@ export function MediaCard({ media }: { media: TrackedMedia }) {
                 {media.releaseYear ? ` · ${media.releaseYear}` : ""}
               </p>
             </div>
-            <StatusBadge status={status} />
+            <StatusBadge status={section} className="shrink-0" />
           </div>
 
           <div className="mt-auto space-y-1.5">
@@ -132,16 +154,64 @@ export function MediaCard({ media }: { media: TrackedMedia }) {
                         undefined
                       }
                     />
-                    <Button
-                      size="icon"
-                      variant="outline"
-                      className="h-7 w-7"
-                      onClick={() => handleIncrement("currentEpisode")}
-                    >
-                      <Plus className="h-3.5 w-3.5" />
-                    </Button>
+                    {(media.mediaType === "TV" || media.mediaType === "ANIME") && (
+                      <EpisodeListDialog
+                        mediaId={media.id}
+                        mediaTitle={media.titleEnglish || media.title}
+                        currentEpisode={currentEp}
+                        onEpisodeUpdate={(ep) => {
+                          setCurrentEp(ep);
+                          router.refresh();
+                        }}
+                        seasons={nextEpisode?.seasons}
+                      />
+                    )}
                   </div>
                 )}
+                {status !== "COMPLETED" && (() => {
+                  const nextToWatch = currentEp + 1;
+                  const maxAvailable = media.releasedEpisodes ?? media.totalEpisodes ?? 0;
+                  const hasAvailable = maxAvailable > 0 && nextToWatch <= maxAvailable;
+                  const nextAiring = nextEpisode?.nextAiring ?? null;
+
+                  if (!hasAvailable && !nextAiring) return null;
+
+                  const se = nextEpisode?.seasons?.length
+                    ? toSeasonEp(nextToWatch, nextEpisode.seasons)
+                    : null;
+                  const nextLabel = se
+                    ? `S${pad(se.season)}E${pad(se.episode)}`
+                    : `Ep ${nextToWatch}`;
+
+                  return (
+                    <div className="mt-2 space-y-1">
+                      {hasAvailable && (
+                        <div className="flex items-center gap-2 rounded-md bg-muted/50 px-2 py-1">
+                          <span className="text-xs font-medium text-foreground/70 shrink-0">Up next:</span>
+                          <span className="text-xs text-foreground/70 font-medium">{nextLabel}</span>
+                        </div>
+                      )}
+                      {nextAiring && (
+                        <div className="flex items-center gap-2 rounded-md bg-muted/50 px-2 py-1 min-w-0">
+                          <span className="text-xs font-medium text-foreground/70 shrink-0">On torrent:</span>
+                          <span className="text-xs font-medium text-foreground/70 shrink-0">
+                            S{pad(nextAiring.seasonNumber)}E{pad(nextAiring.episodeNumber)}
+                          </span>
+                          {nextAiring.name && (
+                            <span className="text-xs text-muted-foreground truncate min-w-0">
+                              · {nextAiring.name}
+                            </span>
+                          )}
+                          {nextAiring.airDate && (
+                            <span className="text-xs text-muted-foreground shrink-0 ml-auto">
+                              {formatAirDate(nextAiring.airDate)}
+                            </span>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
               </div>
             )}
 
@@ -173,14 +243,6 @@ export function MediaCard({ media }: { media: TrackedMedia }) {
                       min={0}
                       max={media.totalChapters ?? undefined}
                     />
-                    <Button
-                      size="icon"
-                      variant="outline"
-                      className="h-7 w-7"
-                      onClick={() => handleIncrement("currentChapter")}
-                    >
-                      <Plus className="h-3.5 w-3.5" />
-                    </Button>
                   </div>
                 )}
               </div>

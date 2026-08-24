@@ -4,9 +4,11 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "prisma generate && next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "migrate:dev": "prisma migrate dev",
+    "migrate:prod": "node --env-file=.env.production node_modules/.bin/prisma migrate deploy"
   },
   "dependencies": {
     "@base-ui/react": "^1.2.0",

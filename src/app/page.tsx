@@ -3,8 +3,22 @@ import { prisma } from "@/lib/prisma";
 import { DashboardClient } from "@/components/media/dashboard-client";
 import { UpcomingEpisodes } from "@/components/media/upcoming-episodes";
 import { Skeleton } from "@/components/ui/skeleton";
+import { getTMDBEpisodeSchedule } from "@/lib/tmdb";
 
 export const dynamic = "force-dynamic";
+
+export type NextEpisodeInfo = {
+  nextAiring: {
+    seasonNumber: number;
+    episodeNumber: number;
+    name: string | null;
+    airDate: string | null;
+  } | null;
+  seasons: { seasonNumber: number; episodeCount: number }[];
+  /** Episodes aired as of this request, not as of when the show was added. */
+  airedEpisodes: number | null;
+  runStatus: string | null;
+};
 
 function UpcomingSkeleton() {
   return (
@@ -32,12 +46,71 @@ export default async function DashboardPage() {
     orderBy: { updatedAt: "desc" },
   });
 
+  const tvShows = media.filter(
+    (m) =>
+      m.mediaType === "TV" &&
+      m.externalId &&
+      m.tracking?.status !== "COMPLETED" &&
+      m.tracking?.status !== "DROPPED"
+  );
+
+  const nextEpisodeResults = await Promise.allSettled(
+    tvShows.map(async (show) => {
+      const schedule = await getTMDBEpisodeSchedule(Number(show.externalId));
+      return { id: show.id, ...schedule };
+    })
+  );
+
+  const nextEpisodeMap: Record<string, NextEpisodeInfo> = {};
+  // totalEpisodes/releasedEpisodes are otherwise only written on add or a manual
+  // refresh, so a show that gained a season since then looks finished. We already
+  // have fresh numbers in hand here — write them back when they've drifted.
+  const staleSyncs: Promise<unknown>[] = [];
+
+  for (const result of nextEpisodeResults) {
+    if (result.status !== "fulfilled") continue;
+    const { id, next, seasons, airedEpisodes, totalEpisodes, status } = result.value;
+
+    nextEpisodeMap[id] = {
+      nextAiring: next,
+      seasons,
+      airedEpisodes,
+      runStatus: status,
+    };
+
+    const show = media.find((m) => m.id === id);
+    if (!show) continue;
+    if (
+      show.totalEpisodes === totalEpisodes &&
+      show.releasedEpisodes === airedEpisodes &&
+      show.status === status
+    ) {
+      continue;
+    }
+
+    staleSyncs.push(
+      prisma.media.update({
+        where: { id },
+        data: { totalEpisodes, releasedEpisodes: airedEpisodes, status },
+      })
+    );
+    // Keep this render consistent with what we just wrote.
+    show.totalEpisodes = totalEpisodes;
+    show.releasedEpisodes = airedEpisodes;
+    show.status = status;
+  }
+
+  await Promise.allSettled(staleSyncs);
+
   return (
     <div className="space-y-8">
       <Suspense fallback={<UpcomingSkeleton />}>
         <UpcomingEpisodes />
       </Suspense>
-      <DashboardClient initialMedia={JSON.parse(JSON.stringify(media))} />
+      <DashboardClient
+        initialMedia={JSON.parse(JSON.stringify(media))}
+        nextEpisodeMap={nextEpisodeMap}
+      />
     </div>
   );
 }

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getTMDBDetails } from "@/lib/tmdb";
+import { getTMDBDetails, getTMDBEpisodeSchedule } from "@/lib/tmdb";
 import type { SearchResult } from "@/types";
 
 export async function GET(request: NextRequest) {
@@ -50,8 +50,13 @@ export async function POST(request: NextRequest) {
       try {
         const details = await getTMDBDetails(parseInt(body.externalId), "TV");
         totalEpisodes = details.totalEpisodes;
-        releasedEpisodes = details.totalEpisodes; // all listed eps on TMDB are released
         mediaStatus = details.status;
+        // number_of_episodes includes announced-but-unaired episodes, so count
+        // released ones from the last episode that has actually aired.
+        const { airedEpisodes } = await getTMDBEpisodeSchedule(
+          parseInt(body.externalId)
+        );
+        releasedEpisodes = airedEpisodes;
       } catch {
         // non-fatal — we'll store nulls and user can refresh later
       }

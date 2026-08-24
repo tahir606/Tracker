@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getAniListMalId } from "@/lib/anilist";
 import { getJikanEpisodes } from "@/lib/jikan";
 import { getTMDBDetails, getTMDBSeasonEpisodes } from "@/lib/tmdb";
+import { toAvailableDate } from "@/lib/release-date";
 
 export interface EpisodeItem {
   number: number;         // season-relative (for display)
@@ -54,7 +55,7 @@ export async function GET(
       const episodes: EpisodeItem[] = data.data.map((ep) => ({
         number: ep.mal_id,
         title: ep.title,
-        airDate: ep.aired,
+        airDate: toAvailableDate(ep.aired),
         filler: ep.filler,
         recap: ep.recap,
         synopsis: null, // loaded lazily via /episodes/[epNumber]
