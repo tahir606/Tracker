@@ -1,5 +1,3 @@
-import { TORRENT_DELAY_DAYS } from "@/lib/release-date";
-
 export type SeasonInfo = { seasonNumber: number; episodeCount: number };
 
 function pad(n: number) {
@@ -55,12 +53,3 @@ export function relativeDay(dateStr: string): string {
     day: "numeric",
   });
 }
-
-const delayDays: number = TORRENT_DELAY_DAYS;
-
-export const AVAILABILITY_NOTE =
-  delayDays === 0
-    ? "Dates are air dates."
-    : `Dates are when episodes become available, ${delayDays} day${
-        delayDays === 1 ? "" : "s"
-      } after they air.`;

@@ -52,7 +52,7 @@ import {
   STATUS_LABELS,
   STATUS_ORDER,
 } from "@/lib/constants";
-import { AVAILABILITY_NOTE, episodeLabel, relativeDay, seasonEpLabel } from "@/lib/episodes";
+import { episodeLabel, relativeDay, seasonEpLabel } from "@/lib/episodes";
 import { getLibrarySection } from "@/lib/library-section";
 import { updateTracking } from "@/lib/tracking-client";
 import { cn } from "@/lib/utils";
@@ -178,7 +178,7 @@ export function MediaDetailClient({
   let progressNote: string | null = null;
   if (section === CAUGHT_UP) {
     progressNote = nextAiring?.airDate
-      ? `You're up to date. ${seasonEpLabel(nextAiring.seasonNumber, nextAiring.episodeNumber)} is out ${relativeDay(nextAiring.airDate)}.`
+      ? `You're up to date. ${seasonEpLabel(nextAiring.seasonNumber, nextAiring.episodeNumber)} airs ${relativeDay(nextAiring.airDate)}.`
       : `You're up to date. ${SECTION_HINTS[CAUGHT_UP]}.`;
   } else if (section === "COMPLETED" && status === "WATCHING") {
     progressNote = `You've ${isManga ? "read" : "watched"} everything and the series has ended, so it's listed under Finished.`;
@@ -392,10 +392,10 @@ export function MediaDetailClient({
                   )}
                 </div>
                 {nextAiring?.airDate && section !== CAUGHT_UP && (
-                  <p className="flex items-center gap-1.5 text-xs text-muted-foreground" title={AVAILABILITY_NOTE}>
+                  <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
                     <CalendarClock className="h-3.5 w-3.5" />
                     Next new episode: {seasonEpLabel(nextAiring.seasonNumber, nextAiring.episodeNumber)}
-                    {nextAiring.name ? ` “${nextAiring.name}”` : ""}, out {relativeDay(nextAiring.airDate)}
+                    {nextAiring.name ? ` “${nextAiring.name}”` : ""}, airs {relativeDay(nextAiring.airDate)}
                   </p>
                 )}
               </>

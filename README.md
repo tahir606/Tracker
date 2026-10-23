@@ -1,6 +1,6 @@
 # Media Tracker
 
-A self-hosted tracker for anime, manga, TV shows and movies. Search for a title, add it to your library, and keep track of what you're watching, what's caught up, and when the next episode is available.
+A self-hosted tracker for anime, manga, TV shows and movies. Search for a title, add it to your library, and keep track of what you're watching, what's caught up, and when the next episode airs.
 
 ## Features
 
@@ -78,7 +78,6 @@ npm run migrate:prod
 
 ## Notes
 
-- Episode dates shown in the app are the broadcast date plus a one-day delay (`TORRENT_DELAY_DAYS` in `src/lib/release-date.ts`). Set it to `0` if you want raw air dates.
 - Show details (status, released episode count) are saved when you add an item. Use the refresh action on an item's page to update them from the provider.
 
 ## Contributing

@@ -1,13 +1,8 @@
 import { prisma } from "@/lib/prisma";
 import { getTMDBEpisodeSchedule } from "@/lib/tmdb";
-import { TORRENT_DELAY_DAYS } from "@/lib/release-date";
 import { CalendarDays } from "lucide-react";
-import { AVAILABILITY_NOTE, daysFromToday } from "@/lib/episodes";
+import { daysFromToday } from "@/lib/episodes";
 import { EpisodeScheduleList, type ScheduleEntry } from "./episode-schedule-list";
-
-// Dates from the schedule are torrent-availability dates, so the windows below
-// run to the shifted date rather than the broadcast date — otherwise an episode
-// that aired today (grabbable tomorrow) falls between both buckets.
 
 export async function UpcomingEpisodes() {
   const tvShows = await prisma.media.findMany({
@@ -34,13 +29,13 @@ export async function UpcomingEpisodes() {
 
       if (last?.airDate) {
         const days = daysFromToday(last.airDate);
-        if (days >= -7 && days <= TORRENT_DELAY_DAYS) {
+        if (days >= -7 && days <= 0) {
           entries.push({ mediaId: show.id, title: show.title, coverImage: show.coverImage, ...last, airDate: last.airDate, days, currentEpisode });
         }
       }
       if (next?.airDate) {
         const days = daysFromToday(next.airDate);
-        if (days >= 0 && days <= 7 + TORRENT_DELAY_DAYS) {
+        if (days >= 0 && days <= 7) {
           const alreadyAdded = entries.some((e) => e.airDate === next.airDate && e.episodeNumber === next.episodeNumber);
           if (!alreadyAdded) {
             entries.push({ mediaId: show.id, title: show.title, coverImage: show.coverImage, ...next, airDate: next.airDate, days, currentEpisode });
@@ -63,7 +58,7 @@ export async function UpcomingEpisodes() {
     <EpisodeScheduleList
       episodes={episodes}
       icon={<CalendarDays className="h-4 w-4 text-muted-foreground" />}
-      hint={`TV episodes from the past week and the week ahead. ${AVAILABILITY_NOTE}`}
+      hint="TV episodes that aired in the past week or air in the next week."
     />
   );
 }

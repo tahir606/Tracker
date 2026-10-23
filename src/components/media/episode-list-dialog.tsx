@@ -14,7 +14,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { AVAILABILITY_NOTE, episodeLabel, toSeasonEp, type SeasonInfo } from "@/lib/episodes";
+import { episodeLabel, toSeasonEp, type SeasonInfo } from "@/lib/episodes";
 import { updateTracking } from "@/lib/tracking-client";
 import { cn } from "@/lib/utils";
 import type { EpisodesPageResponse, EpisodeItem } from "@/app/api/media/[id]/episodes/route";
@@ -108,7 +108,7 @@ function EpisodeRow({
             <span className="mt-0.5 flex flex-wrap items-center gap-1.5">
               {ep.airDate && (
                 <span className="text-xs text-muted-foreground">
-                  {isFuture ? "Out " : ""}
+                  {isFuture ? "Airs " : ""}
                   {new Date(ep.airDate).toLocaleDateString(undefined, {
                     year: "numeric",
                     month: "short",
@@ -379,8 +379,7 @@ export function EpisodeListDialog({
           <DialogDescription className="text-xs">
             {localCurrentEp > 0
               ? `You've watched up to ${episodeLabel(localCurrentEp, seasons)}.`
-              : "You haven't marked any episodes yet."}{" "}
-            {AVAILABILITY_NOTE}
+              : "You haven't marked any episodes yet."}
           </DialogDescription>
         </DialogHeader>
 

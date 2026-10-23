@@ -31,7 +31,7 @@ import { ProgressDisplay } from "./progress-display";
 import { EpisodeListDialog } from "./episode-list-dialog";
 import { SetProgressDialog } from "./set-progress-dialog";
 import { CAUGHT_UP, MEDIA_TYPE_LABELS, STATUS_LABELS, STATUS_ORDER } from "@/lib/constants";
-import { episodeLabel, relativeDay, seasonEpLabel, AVAILABILITY_NOTE } from "@/lib/episodes";
+import { episodeLabel, relativeDay, seasonEpLabel } from "@/lib/episodes";
 import { getLibrarySection } from "@/lib/library-section";
 import { updateTracking } from "@/lib/tracking-client";
 import type { NextEpisodeInfo, TrackedMedia } from "@/types";
@@ -153,8 +153,8 @@ export function MediaCard({
   let note: React.ReactNode = null;
   if (nextAiring && status !== "COMPLETED" && status !== "DROPPED") {
     note = (
-      <span title={AVAILABILITY_NOTE}>
-        {seasonEpLabel(nextAiring.seasonNumber, nextAiring.episodeNumber)} out{" "}
+      <span>
+        {seasonEpLabel(nextAiring.seasonNumber, nextAiring.episodeNumber)} airs{" "}
         {nextAiring.airDate ? relativeDay(nextAiring.airDate) : "soon"}
       </span>
     );

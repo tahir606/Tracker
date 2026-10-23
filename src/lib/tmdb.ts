@@ -1,5 +1,4 @@
 import type { SearchResult } from "@/types";
-import { toAvailableDate } from "@/lib/release-date";
 
 const BASE_URL = "https://api.themoviedb.org/3";
 const IMAGE_BASE = "https://image.tmdb.org/t/p/w500";
@@ -95,7 +94,7 @@ export async function getTMDBSeasonEpisodes(tvId: number, season: number) {
   ).map((ep) => ({
     number: ep.episode_number,
     title: ep.name || null,
-    airDate: toAvailableDate(ep.air_date),
+    airDate: ep.air_date,
     synopsis: ep.overview || null,
     thumbnail: ep.still_path
       ? `https://image.tmdb.org/t/p/w300${ep.still_path}`
@@ -117,7 +116,7 @@ function mapEpisodeStub(ep: TMDBEpisodeStub, absoluteNumber: number | null) {
     seasonNumber: ep.season_number,
     episodeNumber: ep.episode_number,
     name: ep.name || null,
-    airDate: toAvailableDate(ep.air_date),
+    airDate: ep.air_date,
     absoluteNumber,
   };
 }
