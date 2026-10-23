@@ -22,7 +22,7 @@ import type { EpisodesPageResponse, EpisodeItem } from "@/app/api/media/[id]/epi
 interface EpisodeRowProps {
   ep: EpisodeItem;
   mediaId: string;
-  source: "jikan" | "tmdb" | "unsupported";
+  source: EpisodesPageResponse["source"];
   currentEpisode: number;
   onSetProgress: (value: number) => void;
 }
@@ -383,6 +383,12 @@ export function EpisodeListDialog({
             {AVAILABILITY_NOTE}
           </DialogDescription>
         </DialogHeader>
+
+        {data?.notice && !loading && (
+          <p className="shrink-0 border-b bg-amber-50 px-4 py-2 text-xs text-amber-900 sm:px-6 dark:bg-amber-950/40 dark:text-amber-200">
+            {data.notice}
+          </p>
+        )}
 
         {/* Scrollable episode list */}
         <div ref={listRef} className="flex-1 overflow-y-auto">

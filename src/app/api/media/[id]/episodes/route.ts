@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getAniListMalId } from "@/lib/anilist";
+import { getAniListEpisodes, getAniListMalId } from "@/lib/anilist";
 import { getJikanEpisodes } from "@/lib/jikan";
 import { getTMDBDetails, getTMDBSeasonEpisodes } from "@/lib/tmdb";
 import { toAvailableDate } from "@/lib/release-date";
@@ -24,8 +24,10 @@ export interface EpisodesPageResponse {
     hasNextPage: boolean;
     pageLabel?: string; // e.g. "Season 1" for TMDB
   };
-  source: "jikan" | "tmdb" | "unsupported";
+  source: "jikan" | "anilist" | "tmdb" | "unsupported";
   malId?: number;
+  /** Shown above the list, e.g. when a fallback source was used. */
+  notice?: string;
 }
 
 export async function GET(
@@ -41,35 +43,58 @@ export async function GET(
       return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
 
-    // Anime from AniList — use Jikan via MAL ID
+    // Anime from AniList — use Jikan via MAL ID for titles, filler and recap
+    // flags, falling back to AniList's own (sparser) data when Jikan is down.
     if (media.source === "anilist" && media.mediaType === "ANIME") {
-      const malId = await getAniListMalId(parseInt(media.externalId));
-      if (!malId) {
-        return NextResponse.json(
-          { error: "No MAL ID available for this anime" },
-          { status: 404 }
-        );
+      const anilistId = parseInt(media.externalId);
+      const malId = await getAniListMalId(anilistId);
+
+      if (malId) {
+        try {
+          const data = await getJikanEpisodes(malId, page);
+          const episodes: EpisodeItem[] = data.data.map((ep) => ({
+            number: ep.mal_id,
+            title: ep.title,
+            airDate: toAvailableDate(ep.aired),
+            filler: ep.filler,
+            recap: ep.recap,
+            synopsis: null, // loaded lazily via /episodes/[epNumber]
+          }));
+
+          const response: EpisodesPageResponse = {
+            episodes,
+            pagination: {
+              currentPage: page,
+              totalPages: data.pagination.last_visible_page,
+              hasNextPage: data.pagination.has_next_page,
+            },
+            source: "jikan",
+            malId,
+          };
+
+          return NextResponse.json(response);
+        } catch (error) {
+          console.warn("Jikan unavailable, falling back to AniList:", error);
+        }
       }
 
-      const data = await getJikanEpisodes(malId, page);
-      const episodes: EpisodeItem[] = data.data.map((ep) => ({
-        number: ep.mal_id,
-        title: ep.title,
-        airDate: toAvailableDate(ep.aired),
-        filler: ep.filler,
-        recap: ep.recap,
-        synopsis: null, // loaded lazily via /episodes/[epNumber]
-      }));
-
+      const data = await getAniListEpisodes(anilistId, page);
       const response: EpisodesPageResponse = {
-        episodes,
+        episodes: data.episodes.map((ep) => ({
+          number: ep.number,
+          title: ep.title,
+          airDate: toAvailableDate(ep.airedAt),
+          thumbnail: ep.thumbnail,
+        })),
         pagination: {
           currentPage: page,
-          totalPages: data.pagination.last_visible_page,
-          hasNextPage: data.pagination.has_next_page,
+          totalPages: data.totalPages,
+          hasNextPage: data.hasNextPage,
         },
-        source: "jikan",
-        malId,
+        source: "anilist",
+        notice: malId
+          ? "MyAnimeList isn't responding right now, so episode titles, summaries and filler tags may be missing."
+          : "This anime isn't on MyAnimeList, so episode titles, summaries and filler tags may be missing.",
       };
 
       return NextResponse.json(response);

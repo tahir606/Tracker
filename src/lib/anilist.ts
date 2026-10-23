@@ -123,3 +123,90 @@ export async function getAniListMalId(anilistId: number): Promise<number | null>
   const data = await anilistFetch(MAL_ID_QUERY, { id: anilistId });
   return data.data?.Media?.idMal ?? null;
 }
+
+const EPISODE_INFO_QUERY = `
+  query ($id: Int!, $after: Int!, $before: Int!) {
+    Media(id: $id) {
+      episodes
+      nextAiringEpisode {
+        episode
+      }
+      streamingEpisodes {
+        title
+        thumbnail
+      }
+    }
+    first: Page(page: 1, perPage: 50) {
+      airingSchedules(mediaId: $id, episode_greater: $after, episode_lesser: $before, sort: EPISODE) {
+        episode
+        airingAt
+      }
+    }
+    second: Page(page: 2, perPage: 50) {
+      airingSchedules(mediaId: $id, episode_greater: $after, episode_lesser: $before, sort: EPISODE) {
+        episode
+        airingAt
+      }
+    }
+  }
+`;
+
+export interface AniListEpisode {
+  number: number;
+  title: string | null;
+  thumbnail: string | null;
+  /** ISO timestamp of the broadcast, when AniList has a schedule entry. */
+  airedAt: string | null;
+}
+
+/**
+ * Episode list built from AniList alone, used when Jikan (MyAnimeList) is
+ * unavailable. Pages hold 100 episodes to match Jikan's paging. Titles come
+ * from streaming listings ("Episode 5 - Title"), so they're often missing.
+ */
+export async function getAniListEpisodes(anilistId: number, page: number) {
+  const PER_PAGE = 100;
+  const start = (page - 1) * PER_PAGE + 1;
+  const end = page * PER_PAGE;
+
+  const data = await anilistFetch(EPISODE_INFO_QUERY, {
+    id: anilistId,
+    after: start - 1,
+    before: end + 1,
+  });
+  const media = data.data?.Media;
+  if (!media) throw new Error("AniList media not found");
+
+  // Only list what's out, like Jikan does.
+  const released: number = media.nextAiringEpisode
+    ? media.nextAiringEpisode.episode - 1
+    : media.episodes ?? 0;
+  const totalPages = Math.max(1, Math.ceil(released / PER_PAGE));
+
+  const titles = new Map<number, { title: string; thumbnail: string | null }>();
+  for (const s of (media.streamingEpisodes ?? []) as { title: string; thumbnail: string | null }[]) {
+    const match = /^Episode\s+(\d+)\s*[-:]\s*(.+)$/i.exec(s.title ?? "");
+    if (match) titles.set(Number(match[1]), { title: match[2].trim(), thumbnail: s.thumbnail });
+  }
+
+  const airedAt = new Map<number, string>();
+  const schedules = [
+    ...(data.data?.first?.airingSchedules ?? []),
+    ...(data.data?.second?.airingSchedules ?? []),
+  ] as { episode: number; airingAt: number }[];
+  for (const s of schedules) {
+    airedAt.set(s.episode, new Date(s.airingAt * 1000).toISOString());
+  }
+
+  const episodes: AniListEpisode[] = [];
+  for (let n = start; n <= Math.min(end, released); n++) {
+    episodes.push({
+      number: n,
+      title: titles.get(n)?.title ?? null,
+      thumbnail: titles.get(n)?.thumbnail ?? null,
+      airedAt: airedAt.get(n) ?? null,
+    });
+  }
+
+  return { episodes, totalPages, hasNextPage: page < totalPages };
+}
