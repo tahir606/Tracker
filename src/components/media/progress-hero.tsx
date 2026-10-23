@@ -4,8 +4,7 @@ import { useEffect, useState } from "react";
 import { CalendarClock, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { EpisodeListDialog } from "./episode-list-dialog";
-import { EpisodePickerDialog } from "./episode-picker-dialog";
+import { EpisodesDialog } from "./episodes-dialog";
 import { SetProgressDialog } from "./set-progress-dialog";
 import { relativeDay, seasonEpLabel, toSeasonEp, type SeasonInfo } from "@/lib/episodes";
 import { cn } from "@/lib/utils";
@@ -36,7 +35,6 @@ export function ProgressHero({
   nextEpisode,
   onSetProgress,
   onMarkMovieWatched,
-  onEpisodeUpdate,
 }: {
   media: TrackedMedia;
   status: string;
@@ -48,9 +46,7 @@ export function ProgressHero({
   nextEpisode?: NextEpisodeInfo;
   onSetProgress: (value: number, opts?: { undoable?: boolean }) => Promise<void>;
   onMarkMovieWatched: () => void;
-  onEpisodeUpdate: (episode: number) => void;
 }) {
-  const [episodesOpen, setEpisodesOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [fetched, setFetched] = useState<{ forEp: number; title: string | null; airDate: string | null } | null>(null);
@@ -173,14 +169,9 @@ export function ProgressHero({
               </Button>
             )
           )}
-          {hasEpisodeList && (
-            <Button variant="ghost" onClick={() => setEpisodesOpen(true)}>
-              All episodes
-            </Button>
-          )}
           {!isMovie && (
             <Button variant="ghost" onClick={() => setEditOpen(true)}>
-              {isManga ? "Change chapter" : "Change episode"}
+              {isManga ? "Change chapter" : "Episodes"}
             </Button>
           )}
         </div>
@@ -216,18 +207,7 @@ export function ProgressHero({
       )}
 
       {hasEpisodeList && (
-        <EpisodeListDialog
-          mediaId={media.id}
-          mediaTitle={title}
-          currentEpisode={current}
-          seasons={seasons}
-          open={episodesOpen}
-          onOpenChange={setEpisodesOpen}
-          onEpisodeUpdate={onEpisodeUpdate}
-        />
-      )}
-      {hasEpisodeList && (
-        <EpisodePickerDialog
+        <EpisodesDialog
           mediaId={media.id}
           mediaTitle={title}
           currentEpisode={current}

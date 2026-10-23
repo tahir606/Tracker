@@ -28,9 +28,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { ProgressDisplay } from "./progress-display";
-import { EpisodeListDialog } from "./episode-list-dialog";
+import { EpisodesDialog } from "./episodes-dialog";
 import { SetProgressDialog } from "./set-progress-dialog";
-import { EpisodePickerDialog } from "./episode-picker-dialog";
 import { CAUGHT_UP, MEDIA_TYPE_LABELS, STATUS_LABELS, STATUS_ORDER } from "@/lib/constants";
 import { episodeLabel, relativeDay, seasonEpLabel } from "@/lib/episodes";
 import { getLibrarySection } from "@/lib/library-section";
@@ -228,10 +227,10 @@ export function MediaCard({
                 </DropdownMenuItem>
                 {hasEpisodeList && (
                   <DropdownMenuItem onClick={() => setEpisodesOpen(true)}>
-                    <ListOrdered /> Browse episodes
+                    <ListOrdered /> Episodes…
                   </DropdownMenuItem>
                 )}
-                {!isMovie && (
+                {isManga && (
                   <DropdownMenuItem onClick={() => setProgressOpen(true)}>
                     <Pencil /> Where I&apos;m up to…
                   </DropdownMenuItem>
@@ -290,27 +289,13 @@ export function MediaCard({
       </div>
 
       {hasEpisodeList && (
-        <EpisodeListDialog
+        <EpisodesDialog
           mediaId={media.id}
           mediaTitle={title}
           currentEpisode={currentEp}
           seasons={seasons}
           open={episodesOpen}
           onOpenChange={setEpisodesOpen}
-          onEpisodeUpdate={(ep) => {
-            setCurrentEp(ep);
-            router.refresh();
-          }}
-        />
-      )}
-      {hasEpisodeList && (
-        <EpisodePickerDialog
-          mediaId={media.id}
-          mediaTitle={title}
-          currentEpisode={currentEp}
-          seasons={seasons}
-          open={progressOpen}
-          onOpenChange={setProgressOpen}
           onPick={(ep) => setProgress(ep, { undoable: true })}
         />
       )}

@@ -51,35 +51,32 @@ On the **Library** page, each card shows how far you are, for example "8 of 36 e
 
 After each change a message appears in the corner with an **Undo** button.
 
-Everything else is in the **⋯** menu on each card: open the details page, browse episodes, jump to where you are with **Where I'm up to…**, or change the status.
+Everything else is in the **⋯** menu on each card: open the details page, open the **Episodes…** list, or change the status. For manga, **Where I'm up to…** sets the last chapter you read.
 
-![A card's ⋯ menu open. It offers Open details, Browse episodes and Where I'm up to…, then a Status list with In progress, Planned, Paused (ticked), Finished and Dropped.](docs/screenshots/card-menu.png)
+![A card's ⋯ menu open. It offers Open details and Episodes…, then a Status list with In progress, Planned, Paused (ticked), Finished and Dropped.](docs/screenshots/card-menu.png)
 
 > [!TIP]
 > Setting something to **Finished** marks every released episode or chapter as watched for you.
 
-### Catching up after a break
+### 3. Episodes
 
-If you've watched several episodes elsewhere, there's no need to count them. Choose **Where I'm up to…** on a card, or **Change episode** on a title's page, and tap the last episode you watched. Episodes are listed by title, with a tab or dropdown for each season. For manga, enter the number of the last chapter you read.
+**Episodes** opens every episode of a show, starting at the one you're on, which is marked **You're here**. TV shows have a tab for each season, or a dropdown for long-running shows.
 
-### 3. Browse episodes
+- **Tap an episode** to mark it and everything before it as watched. This is the quickest way to catch up after watching several episodes elsewhere, with no counting needed. Tapping an earlier episode moves your progress back.
+- **Tap ⌄** at the end of a row to read the episode's summary.
+- **I haven't started** at the bottom clears your progress.
 
-**Browse episodes** opens the full episode list. It starts at the episode you're up to, which is marked **Up next**. TV shows are split by season.
+Watched episodes have a green tick, and anime episodes are tagged **Filler** or **Recap** where that applies. For manga, which has no episode list, use **Change chapter** and enter the last chapter you read.
 
-- **Mark watched** marks that one episode.
-- **Watched up to here** marks that episode and every one before it.
-- Click the green **✓ Watched** on an episode to un-mark it, along with every episode after it.
-- Click an episode's title to read its summary.
-
-![The episode list for Slow Horses, season 2. Episodes 1 and 2 have green "Watched" ticks. Episode 3, "Drinking Games", is highlighted with an "Up next" badge and a "Mark watched" button. Later episodes have "Watched up to here" buttons. "Previous season" and "Next season" buttons are at the bottom.](docs/screenshots/episodes.png)
+![The Episodes window for Slow Horses with the Season 2 tab selected. Episodes 1 and 2 have green ticks, and episode 2, "From Upshott with Love", is highlighted with a "You're here" badge. Each row shows the episode number, title and air date, with a small arrow at the end to show its summary. The footer reads "Watched up to S02E02" with an "I haven't started" button.](docs/screenshots/episodes.png)
 
 ### 4. The details page
 
-Click any title to open its page. The progress panel leads with what's **up next**, for example "S38E02 · Diary of a Chimpy Kid", with a **Mark watched** button. **All episodes** opens the episode list, and **Change episode** lets you jump to where you are. Next to it are the status, a 1–10 rating and private notes. Notes save when you click away.
+Click any title to open its page. The progress panel leads with what's **up next**, for example "S38E02 · Diary of a Chimpy Kid", with a **Mark watched** button and an **Episodes** button that opens the episode list. Next to it are the status, a 1–10 rating and private notes. Notes save when you click away.
 
 To refresh a title's details from its source, or to remove it, use the **⋯** menu in the top-right corner of the page. Removing a title asks you to confirm first.
 
-![The details page for The Simpsons. On the left is the cover; next to it are the title, an "In progress" badge, "TV Show · 1989 · Returning series" and a description. Below, a progress panel reads "Up next: S38E02 · Diary of a Chimpy Kid, aired 4 Oct 2026", with a "Mark watched" button, "All episodes" and "Change episode" links, a note that S38E04 airs in 2 days, and a progress bar showing 802 of 804 episodes. A "Your list" panel shows the status, a row of rating buttons from 1 to 10, and a notes box.](docs/screenshots/detail.png)
+![The details page for The Simpsons. On the left is the cover; next to it are the title, an "In progress" badge, "TV Show · 1989 · Returning series" and a description. Below, a progress panel reads "Up next: S38E02 · Diary of a Chimpy Kid, aired 4 Oct 2026", with "Mark watched" and "Episodes" buttons, a note that S38E04 airs in 2 days, and a progress bar showing 802 of 804 episodes. A "Your list" panel shows the status, a row of rating buttons from 1 to 10, and a notes box.](docs/screenshots/detail.png)
 
 ### Dark mode and phones
 

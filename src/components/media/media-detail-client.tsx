@@ -314,10 +314,6 @@ export function MediaDetailClient({
           nextEpisode={nextEpisode}
           onSetProgress={saveProgress}
           onMarkMovieWatched={() => handleStatusChange("COMPLETED")}
-          onEpisodeUpdate={(ep) => {
-            setCurrentEp(ep);
-            router.refresh();
-          }}
         />
 
         <Card>
