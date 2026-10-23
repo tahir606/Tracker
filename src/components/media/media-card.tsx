@@ -30,6 +30,7 @@ import {
 import { ProgressDisplay } from "./progress-display";
 import { EpisodeListDialog } from "./episode-list-dialog";
 import { SetProgressDialog } from "./set-progress-dialog";
+import { EpisodePickerDialog } from "./episode-picker-dialog";
 import { CAUGHT_UP, MEDIA_TYPE_LABELS, STATUS_LABELS, STATUS_ORDER } from "@/lib/constants";
 import { episodeLabel, relativeDay, seasonEpLabel } from "@/lib/episodes";
 import { getLibrarySection } from "@/lib/library-section";
@@ -96,7 +97,13 @@ export function MediaCard({
         : seasons?.length
         ? episodeLabel(value, seasons)
         : `Episode ${value}`;
-      toast.success(`${what} of ${title} marked as ${isManga ? "read" : "watched"}`, {
+      const message =
+        value === 0
+          ? `${title}: progress cleared`
+          : value === previous + 1
+          ? `${what} of ${title} marked as ${isManga ? "read" : "watched"}`
+          : `${title}: up to ${what}`;
+      toast.success(message, {
         action: {
           label: "Undo",
           onClick: async () => {
@@ -226,7 +233,7 @@ export function MediaCard({
                 )}
                 {!isMovie && (
                   <DropdownMenuItem onClick={() => setProgressOpen(true)}>
-                    <Pencil /> Set progress…
+                    <Pencil /> Where I&apos;m up to…
                   </DropdownMenuItem>
                 )}
                 <DropdownMenuSeparator />
@@ -296,7 +303,18 @@ export function MediaCard({
           }}
         />
       )}
-      {!isMovie && (
+      {hasEpisodeList && (
+        <EpisodePickerDialog
+          mediaId={media.id}
+          mediaTitle={title}
+          currentEpisode={currentEp}
+          seasons={seasons}
+          open={progressOpen}
+          onOpenChange={setProgressOpen}
+          onPick={(ep) => setProgress(ep, { undoable: true })}
+        />
+      )}
+      {isManga && (
         <SetProgressDialog
           open={progressOpen}
           onOpenChange={setProgressOpen}
@@ -305,7 +323,7 @@ export function MediaCard({
           current={current}
           max={available ?? null}
           seasons={seasons}
-          onSave={(v) => setProgress(v)}
+          onSave={(v) => setProgress(v, { undoable: true })}
         />
       )}
     </Card>

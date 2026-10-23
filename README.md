@@ -51,12 +51,16 @@ On the **Library** page, each card shows how far you are, for example "8 of 36 e
 
 After each change a message appears in the corner with an **Undo** button.
 
-Everything else is in the **⋯** menu on each card: open the details page, browse episodes, type an exact number with **Set progress…**, or change the status.
+Everything else is in the **⋯** menu on each card: open the details page, browse episodes, jump to where you are with **Where I'm up to…**, or change the status.
 
-![A card's ⋯ menu open. It offers Open details, Browse episodes and Set progress…, then a Status list with In progress, Planned, Paused (ticked), Finished and Dropped.](docs/screenshots/card-menu.png)
+![A card's ⋯ menu open. It offers Open details, Browse episodes and Where I'm up to…, then a Status list with In progress, Planned, Paused (ticked), Finished and Dropped.](docs/screenshots/card-menu.png)
 
 > [!TIP]
 > Setting something to **Finished** marks every released episode or chapter as watched for you.
+
+### Catching up after a break
+
+If you've watched several episodes elsewhere, there's no need to count them. Choose **Where I'm up to…** on a card, or **Change episode** on a title's page, and tap the last episode you watched. Episodes are listed by title, with a tab or dropdown for each season. For manga, enter the number of the last chapter you read.
 
 ### 3. Browse episodes
 
@@ -71,11 +75,11 @@ Everything else is in the **⋯** menu on each card: open the details page, brow
 
 ### 4. The details page
 
-Click any title to open its page. The progress panel leads with what's **up next**, for example "S38E02 · Diary of a Chimpy Kid", with a **Mark watched** button. **All episodes** opens the episode list, and **Edit** lets you type an exact number. Next to it are the status, a 1–10 rating and private notes. Notes save when you click away.
+Click any title to open its page. The progress panel leads with what's **up next**, for example "S38E02 · Diary of a Chimpy Kid", with a **Mark watched** button. **All episodes** opens the episode list, and **Change episode** lets you jump to where you are. Next to it are the status, a 1–10 rating and private notes. Notes save when you click away.
 
 To refresh a title's details from its source, or to remove it, use the **⋯** menu in the top-right corner of the page. Removing a title asks you to confirm first.
 
-![The details page for The Simpsons. On the left is the cover; next to it are the title, an "In progress" badge, "TV Show · 1989 · Returning series" and a description. Below, a progress panel reads "Up next: S38E02 · Diary of a Chimpy Kid, aired 4 Oct 2026", with a "Mark watched" button, "All episodes" and "Edit" links, a note that S38E04 airs in 2 days, and a progress bar showing 802 of 804 episodes. A "Your list" panel shows the status, a row of rating buttons from 1 to 10, and a notes box.](docs/screenshots/detail.png)
+![The details page for The Simpsons. On the left is the cover; next to it are the title, an "In progress" badge, "TV Show · 1989 · Returning series" and a description. Below, a progress panel reads "Up next: S38E02 · Diary of a Chimpy Kid, aired 4 Oct 2026", with a "Mark watched" button, "All episodes" and "Change episode" links, a note that S38E04 airs in 2 days, and a progress bar showing 802 of 804 episodes. A "Your list" panel shows the status, a row of rating buttons from 1 to 10, and a notes box.](docs/screenshots/detail.png)
 
 ### Dark mode and phones
 

@@ -131,7 +131,13 @@ export function MediaDetailClient({
         : seasons?.length
         ? episodeLabel(clamped, seasons)
         : `Episode ${clamped}`;
-      toast.success(`${what} marked as ${isManga ? "read" : "watched"}`, {
+      const message =
+        clamped === 0
+          ? "Progress cleared"
+          : clamped === previous + 1
+          ? `${what} marked as ${isManga ? "read" : "watched"}`
+          : `Up to ${what}`;
+      toast.success(message, {
         action: {
           label: "Undo",
           onClick: async () => {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Check, ChevronDown, ChevronLeft, ChevronRight, ListOrdered } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -18,6 +18,7 @@ import { episodeLabel, toSeasonEp, type SeasonInfo } from "@/lib/episodes";
 import { updateTracking } from "@/lib/tracking-client";
 import { cn } from "@/lib/utils";
 import type { EpisodesPageResponse, EpisodeItem } from "@/app/api/media/[id]/episodes/route";
+import { useEpisodePages } from "./use-episode-pages";
 
 interface EpisodeRowProps {
   ep: EpisodeItem;
@@ -237,71 +238,20 @@ export function EpisodeListDialog({
     onOpenChange?.(next);
   };
 
-  const [page, setPage] = useState(1);
-  const [data, setData] = useState<EpisodesPageResponse | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [localCurrentEp, setLocalCurrentEp] = useState(currentEpisode);
+  const { setPage, data, loading, error, reload } = useEpisodePages({
+    mediaId,
+    open,
+    startEpisode: localCurrentEp + 1,
+    seasons,
+  });
 
   // Refs for scroll-to-current behaviour
   const listRef = useRef<HTMLDivElement>(null);
   const hasAutoScrolledRef = useRef(false);
-
-  // Jump to the correct page and reset scroll flag when dialog opens
   useEffect(() => {
-    if (open) {
-      const nextEp = localCurrentEp + 1;
-      let jumpPage: number;
-      if (seasons?.length) {
-        // TMDB: page = season number — jump to the season containing the next episode
-        const se = toSeasonEp(nextEp, seasons) ?? toSeasonEp(localCurrentEp, seasons);
-        jumpPage = se ? se.season : 1;
-      } else {
-        // Jikan: 100 episodes per page
-        jumpPage = Math.ceil(nextEp / 100);
-      }
-      setPage(jumpPage);
-      hasAutoScrolledRef.current = false;
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    if (open) hasAutoScrolledRef.current = false;
   }, [open]);
-
-  // Opening fires a fetch for the previous page and then for the jump target;
-  // only the latest request may update state, or a slow stale page wins.
-  const latestRequest = useRef(0);
-
-  const fetchEpisodes = useCallback(
-    async (p: number) => {
-      const id = ++latestRequest.current;
-      setLoading(true);
-      setError(null);
-      try {
-        const res = await fetch(`/api/media/${mediaId}/episodes?page=${p}`);
-        if (!res.ok) throw new Error("Failed to load");
-        const json: EpisodesPageResponse = await res.json();
-        if (id !== latestRequest.current) return;
-        if (json.source === "unsupported") {
-          setError("Episode list is not available for this media type.");
-        } else {
-          setData(json);
-        }
-      } catch {
-        if (id === latestRequest.current) {
-          setError("Failed to load episodes. Please try again.");
-        }
-      } finally {
-        if (id === latestRequest.current) setLoading(false);
-      }
-    },
-    [mediaId]
-  );
-
-  // Fetch on open or page change
-  useEffect(() => {
-    if (open) {
-      fetchEpisodes(page);
-    }
-  }, [open, page, fetchEpisodes]);
 
   // Scroll to next episode once after first load per open session
   useEffect(() => {
@@ -408,7 +358,7 @@ export function EpisodeListDialog({
           {!loading && error && (
             <div className="flex flex-col items-center justify-center gap-2 py-16 text-muted-foreground">
               <p className="text-sm">{error}</p>
-              <Button variant="outline" size="sm" onClick={() => fetchEpisodes(page)}>
+              <Button variant="outline" size="sm" onClick={reload}>
                 Retry
               </Button>
             </div>

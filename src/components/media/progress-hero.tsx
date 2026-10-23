@@ -5,6 +5,7 @@ import { CalendarClock, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { EpisodeListDialog } from "./episode-list-dialog";
+import { EpisodePickerDialog } from "./episode-picker-dialog";
 import { SetProgressDialog } from "./set-progress-dialog";
 import { relativeDay, seasonEpLabel, toSeasonEp, type SeasonInfo } from "@/lib/episodes";
 import { cn } from "@/lib/utils";
@@ -179,7 +180,7 @@ export function ProgressHero({
           )}
           {!isMovie && (
             <Button variant="ghost" onClick={() => setEditOpen(true)}>
-              Edit
+              {isManga ? "Change chapter" : "Change episode"}
             </Button>
           )}
         </div>
@@ -225,7 +226,18 @@ export function ProgressHero({
           onEpisodeUpdate={onEpisodeUpdate}
         />
       )}
-      {!isMovie && (
+      {hasEpisodeList && (
+        <EpisodePickerDialog
+          mediaId={media.id}
+          mediaTitle={title}
+          currentEpisode={current}
+          seasons={seasons}
+          open={editOpen}
+          onOpenChange={setEditOpen}
+          onPick={(ep) => onSetProgress(ep, { undoable: true })}
+        />
+      )}
+      {isManga && (
         <SetProgressDialog
           open={editOpen}
           onOpenChange={setEditOpen}
@@ -234,7 +246,7 @@ export function ProgressHero({
           current={current}
           max={cap}
           seasons={seasons}
-          onSave={(v) => onSetProgress(v)}
+          onSave={(v) => onSetProgress(v, { undoable: true })}
         />
       )}
     </Card>
