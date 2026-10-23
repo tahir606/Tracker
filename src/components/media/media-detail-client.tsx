@@ -6,11 +6,7 @@ import Image from "next/image";
 import Link from "next/link";
 import {
   ArrowLeft,
-  CalendarClock,
-  Check,
-  Minus,
   MoreHorizontal,
-  Plus,
   RefreshCw,
   Trash2,
 } from "lucide-react";
@@ -32,7 +28,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -41,18 +36,16 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { StatusBadge } from "./status-badge";
-import { ProgressDisplay } from "./progress-display";
-import { EpisodeListDialog } from "./episode-list-dialog";
+import { ProgressHero } from "./progress-hero";
 import {
   CAUGHT_UP,
   MEDIA_TYPE_LABELS,
   RUN_STATUS_LABELS,
-  SECTION_HINTS,
   STATUS_DESCRIPTIONS,
   STATUS_LABELS,
   STATUS_ORDER,
 } from "@/lib/constants";
-import { episodeLabel, relativeDay, seasonEpLabel } from "@/lib/episodes";
+import { episodeLabel } from "@/lib/episodes";
 import { getLibrarySection } from "@/lib/library-section";
 import { updateTracking } from "@/lib/tracking-client";
 import { cn } from "@/lib/utils";
@@ -72,7 +65,6 @@ export function MediaDetailClient({
 
   const [currentEp, setCurrentEp] = useState(tracking?.currentEpisode ?? 0);
   const [currentCh, setCurrentCh] = useState(tracking?.currentChapter ?? 0);
-  const [draft, setDraft] = useState<string | null>(null);
   const [status, setStatus] = useState(tracking?.status ?? "WATCHING");
   const [rating, setRating] = useState(tracking?.rating ?? 0);
   const [notes, setNotes] = useState(tracking?.notes ?? "");
@@ -83,8 +75,6 @@ export function MediaDetailClient({
   const [showFullDescription, setShowFullDescription] = useState(false);
 
   const isManga = media.mediaType === "MANGA";
-  const isMovie = media.mediaType === "MOVIE";
-  const hasEpisodeList = media.mediaType === "ANIME" || media.mediaType === "TV";
   const title = media.titleEnglish || media.title;
   const seasons = nextEpisode?.seasons;
   const provider = PROVIDER_NAMES[media.source] ?? "the provider";
@@ -93,7 +83,6 @@ export function MediaDetailClient({
   const current = isManga ? currentCh : currentEp;
   const released = isManga ? null : nextEpisode?.airedEpisodes || media.releasedEpisodes;
   const cap = isManga ? media.totalChapters : released || media.totalEpisodes;
-  const unit = isManga ? "chapters" : "episodes";
 
   const section =
     getLibrarySection(
@@ -125,14 +114,33 @@ export function MediaDetailClient({
     }
   }
 
-  async function saveProgress(value: number) {
+  async function saveProgress(value: number, { undoable = false } = {}) {
     const clamped = Math.max(0, cap ? Math.min(value, cap) : value);
     const field = isManga ? "currentChapter" : "currentEpisode";
     const setLocal = isManga ? setCurrentCh : setCurrentEp;
     const previous = current;
     setLocal(clamped);
-    setDraft(null);
-    if (!(await updateTracking(media.id, { [field]: clamped }))) setLocal(previous);
+    if (!(await updateTracking(media.id, { [field]: clamped }))) {
+      setLocal(previous);
+      return;
+    }
+    router.refresh();
+    if (undoable) {
+      const what = isManga
+        ? `Chapter ${clamped}`
+        : seasons?.length
+        ? episodeLabel(clamped, seasons)
+        : `Episode ${clamped}`;
+      toast.success(`${what} marked as ${isManga ? "read" : "watched"}`, {
+        action: {
+          label: "Undo",
+          onClick: async () => {
+            setLocal(previous);
+            if (await updateTracking(media.id, { [field]: previous })) router.refresh();
+          },
+        },
+      });
+    }
   }
 
   async function handleRatingChange(r: number) {
@@ -174,22 +182,6 @@ export function MediaDetailClient({
       toast.error("Couldn't remove it. Try again.");
       setDeleting(false);
     }
-  }
-
-  const nextAiring = nextEpisode?.nextAiring ?? null;
-  const nextNum = current + 1;
-  const nextIsOut = !cap || nextNum <= cap;
-  const nextLabel = isManga ? `chapter ${nextNum}` : episodeLabel(nextNum, seasons);
-
-  let progressNote: string | null = null;
-  if (section === CAUGHT_UP) {
-    progressNote = nextAiring?.airDate
-      ? `You're up to date. ${seasonEpLabel(nextAiring.seasonNumber, nextAiring.episodeNumber)} airs ${relativeDay(nextAiring.airDate)}.`
-      : `You're up to date. ${SECTION_HINTS[CAUGHT_UP]}.`;
-  } else if (section === "COMPLETED" && status === "WATCHING") {
-    progressNote = `You've ${isManga ? "read" : "watched"} everything and the series has ended, so it's listed under Finished.`;
-  } else if (nextIsOut && current > 0 && status !== "COMPLETED") {
-    progressNote = `Up next: ${nextLabel}`;
   }
 
   const description = media.description ?? "";
@@ -306,108 +298,21 @@ export function MediaDetailClient({
         </div>
       )}
 
-      <div className="grid gap-4 md:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle>Progress</CardTitle>
-            {!isMovie && (
-              <CardDescription>
-                {progressNote ?? (current === 0 ? `You haven't started yet.` : null)}
-              </CardDescription>
-            )}
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {isMovie ? (
-              status === "COMPLETED" ? (
-                <p className="flex items-center gap-2 text-sm font-medium text-emerald-600 dark:text-emerald-400">
-                  <Check className="h-4 w-4" /> Watched
-                </p>
-              ) : (
-                <Button onClick={() => handleStatusChange("COMPLETED")}>
-                  <Check /> Mark as watched
-                </Button>
-              )
-            ) : (
-              <>
-                <ProgressDisplay
-                  current={current}
-                  total={isManga ? media.totalChapters : media.totalEpisodes}
-                  released={released}
-                  unit={unit}
-                />
-                <div className="flex flex-wrap items-center gap-2">
-                  <div className="flex items-center">
-                    <Button
-                      size="icon"
-                      variant="outline"
-                      className="rounded-r-none"
-                      onClick={() => saveProgress(current - 1)}
-                      disabled={current <= 0}
-                      aria-label={`One fewer ${isManga ? "chapter" : "episode"}`}
-                    >
-                      <Minus />
-                    </Button>
-                    <Input
-                      type="number"
-                      inputMode="numeric"
-                      aria-label={isManga ? "Chapters read" : "Episodes watched"}
-                      value={draft ?? String(current)}
-                      onChange={(e) => setDraft(e.target.value)}
-                      onBlur={() => {
-                        if (draft === null) return;
-                        const v = Number.parseInt(draft, 10);
-                        if (Number.isFinite(v) && v !== current) saveProgress(v);
-                        else setDraft(null);
-                      }}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") (e.target as HTMLInputElement).blur();
-                        if (e.key === "Escape") setDraft(null);
-                      }}
-                      className="h-8 w-16 rounded-none border-x-0 text-center tabular-nums"
-                      min={0}
-                      max={cap ?? undefined}
-                    />
-                    <Button
-                      size="icon"
-                      variant="outline"
-                      className="rounded-l-none"
-                      onClick={() => saveProgress(current + 1)}
-                      disabled={!nextIsOut}
-                      aria-label={`One more ${isManga ? "chapter" : "episode"}`}
-                    >
-                      <Plus />
-                    </Button>
-                  </div>
-                  {status === "WATCHING" && nextIsOut && (
-                    <Button onClick={() => saveProgress(nextNum)}>
-                      <Check />
-                      {isManga ? `Read ch. ${nextNum}` : `Watched ${episodeLabel(nextNum, seasons)}`}
-                    </Button>
-                  )}
-                  {hasEpisodeList && (
-                    <EpisodeListDialog
-                      mediaId={media.id}
-                      mediaTitle={title}
-                      currentEpisode={currentEp}
-                      seasons={seasons}
-                      onEpisodeUpdate={(ep) => {
-                        setCurrentEp(ep);
-                        router.refresh();
-                      }}
-                    />
-                  )}
-                </div>
-                {nextAiring?.airDate && section !== CAUGHT_UP && (
-                  <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                    <CalendarClock className="h-3.5 w-3.5" />
-                    Next new episode: {seasonEpLabel(nextAiring.seasonNumber, nextAiring.episodeNumber)}
-                    {nextAiring.name ? ` “${nextAiring.name}”` : ""}, airs {relativeDay(nextAiring.airDate)}
-                  </p>
-                )}
-              </>
-            )}
-          </CardContent>
-        </Card>
+      <div className="grid items-start gap-4 md:grid-cols-2">
+        <ProgressHero
+          media={media}
+          status={status}
+          section={section}
+          current={current}
+          cap={cap ?? null}
+          nextEpisode={nextEpisode}
+          onSetProgress={saveProgress}
+          onMarkMovieWatched={() => handleStatusChange("COMPLETED")}
+          onEpisodeUpdate={(ep) => {
+            setCurrentEp(ep);
+            router.refresh();
+          }}
+        />
 
         <Card>
           <CardHeader>

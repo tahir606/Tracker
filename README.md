@@ -71,11 +71,11 @@ Everything else is in the **⋯** menu on each card: open the details page, brow
 
 ### 4. The details page
 
-Click any title to open its page. It shows your progress with − and + buttons, when the next new episode airs, the status, a 1–10 rating and private notes. Notes save when you click away.
+Click any title to open its page. The progress panel leads with what's **up next**, for example "S38E02 · Diary of a Chimpy Kid", with a **Mark watched** button. **All episodes** opens the episode list, and **Edit** lets you type an exact number. Next to it are the status, a 1–10 rating and private notes. Notes save when you click away.
 
 To refresh a title's details from its source, or to remove it, use the **⋯** menu in the top-right corner of the page. Removing a title asks you to confirm first.
 
-![The details page for The Simpsons. On the left is the cover; next to it are the title, an "In progress" badge, "TV Show · 1989 · Returning series" and a description. A Progress panel shows "802 of 804 episodes", minus and plus buttons, "Watched S38E02" and "Browse episodes" buttons, and when the next episode airs. A "Your list" panel shows the status, a row of rating buttons from 1 to 10, and a notes box.](docs/screenshots/detail.png)
+![The details page for The Simpsons. On the left is the cover; next to it are the title, an "In progress" badge, "TV Show · 1989 · Returning series" and a description. Below, a progress panel reads "Up next: S38E02 · Diary of a Chimpy Kid, aired 4 Oct 2026", with a "Mark watched" button, "All episodes" and "Edit" links, a note that S38E04 airs in 2 days, and a progress bar showing 802 of 804 episodes. A "Your list" panel shows the status, a row of rating buttons from 1 to 10, and a notes box.](docs/screenshots/detail.png)
 
 ### Dark mode and phones
 
