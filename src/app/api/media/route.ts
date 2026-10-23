@@ -62,6 +62,20 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    const trackingStatus =
+      (body.trackingStatus as "WATCHING" | "COMPLETED" | "DROPPED" | "PAUSED" | "PLAN_TO_WATCH") ||
+      "WATCHING";
+
+    // Adding something as Finished means everything released has been watched/read.
+    const finishedProgress =
+      trackingStatus === "COMPLETED"
+        ? body.mediaType === "MOVIE"
+          ? { currentEpisode: 1 }
+          : body.mediaType === "MANGA"
+          ? { currentChapter: body.totalChapters ?? 0 }
+          : { currentEpisode: releasedEpisodes ?? totalEpisodes ?? 0 }
+        : {};
+
     const media = await prisma.media.create({
       data: {
         externalId: body.externalId,
@@ -78,7 +92,9 @@ export async function POST(request: NextRequest) {
         status: mediaStatus,
         tracking: {
           create: {
-            status: (body.trackingStatus as "WATCHING" | "COMPLETED" | "DROPPED" | "PAUSED" | "PLAN_TO_WATCH") || "WATCHING",
+            status: trackingStatus,
+            ...finishedProgress,
+            completedAt: trackingStatus === "COMPLETED" ? new Date() : null,
             startedAt:
               body.trackingStatus === "WATCHING" ||
               !body.trackingStatus

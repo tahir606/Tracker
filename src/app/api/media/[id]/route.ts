@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { releasedProgress } from "@/lib/released-progress";
 
 export async function GET(
   _request: NextRequest,
@@ -38,6 +39,24 @@ export async function PATCH(
 
     if (body.status === "COMPLETED") {
       trackingData.completedAt = new Date();
+
+      // Finishing something means everything released has been watched/read.
+      // Respect an explicit value in the same request, and never lower progress.
+      if (body.currentEpisode === undefined && body.currentChapter === undefined) {
+        const media = await prisma.media.findUnique({
+          where: { id },
+          include: { tracking: true },
+        });
+        if (media?.tracking) {
+          const filled = await releasedProgress(media);
+          if (filled.currentEpisode !== undefined) {
+            trackingData.currentEpisode = Math.max(media.tracking.currentEpisode, filled.currentEpisode);
+          }
+          if (filled.currentChapter !== undefined) {
+            trackingData.currentChapter = Math.max(media.tracking.currentChapter, filled.currentChapter);
+          }
+        }
+      }
     }
     if (body.status === "WATCHING") {
       trackingData.startedAt = new Date();

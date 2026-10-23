@@ -1,4 +1,5 @@
 import { toast } from "sonner";
+import type { TrackedMedia } from "@/types";
 
 export type TrackingPatch = {
   status?: string;
@@ -8,11 +9,15 @@ export type TrackingPatch = {
   notes?: string | null;
 };
 
-/** PATCHes a media item's tracking row. Shows an error toast and returns false on failure. */
+/**
+ * PATCHes a media item's tracking row and returns the saved item (the server
+ * may fill in more than was sent, e.g. progress when marking Finished).
+ * Shows an error toast and returns null on failure.
+ */
 export async function updateTracking(
   mediaId: string,
   data: TrackingPatch
-): Promise<boolean> {
+): Promise<TrackedMedia | null> {
   try {
     const res = await fetch(`/api/media/${mediaId}`, {
       method: "PATCH",
@@ -20,9 +25,9 @@ export async function updateTracking(
       body: JSON.stringify(data),
     });
     if (!res.ok) throw new Error("Failed");
-    return true;
+    return (await res.json()) as TrackedMedia;
   } catch {
     toast.error("Couldn't save that change. Try again.");
-    return false;
+    return null;
   }
 }

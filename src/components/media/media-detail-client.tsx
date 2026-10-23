@@ -111,7 +111,13 @@ export function MediaDetailClient({
     if (!newStatus || newStatus === status) return;
     const previous = status;
     setStatus(newStatus as typeof status);
-    if (await updateTracking(media.id, { status: newStatus })) {
+    const saved = await updateTracking(media.id, { status: newStatus });
+    if (saved) {
+      // Marking Finished fills progress server-side; show what was saved.
+      if (saved.tracking) {
+        setCurrentEp(saved.tracking.currentEpisode);
+        setCurrentCh(saved.tracking.currentChapter);
+      }
       toast.success(`Moved to ${STATUS_LABELS[newStatus]}`);
       router.refresh();
     } else {

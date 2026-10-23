@@ -110,9 +110,14 @@ export function MediaCard({
 
   async function setStatus(newStatus: string, extra: Record<string, number> = {}) {
     setBusy(true);
-    const ok = await updateTracking(media.id, { status: newStatus, ...extra });
+    const saved = await updateTracking(media.id, { status: newStatus, ...extra });
     setBusy(false);
-    if (!ok) return;
+    if (!saved) return;
+    // Marking Finished fills progress server-side; show what was saved.
+    if (saved.tracking) {
+      setCurrentEp(saved.tracking.currentEpisode);
+      setCurrentCh(saved.tracking.currentChapter);
+    }
     toast.success(`${title} moved to ${STATUS_LABELS[newStatus]}`);
     router.refresh();
   }
