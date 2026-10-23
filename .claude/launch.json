@@ -3,7 +3,7 @@
   "configurations": [
     {
       "name": "dev",
-      "runtimeExecutable": "/Users/tahirshakir/.nvm/versions/node/v22.14.0/bin/node",
+      "runtimeExecutable": "node",
       "runtimeArgs": ["node_modules/.bin/next", "dev", "--webpack"],
       "port": 3000
     }

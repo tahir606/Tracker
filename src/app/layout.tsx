@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import { Lato } from "next/font/google";
-import { Toaster } from "sonner";
 import { Header } from "@/components/layout/header";
+import { ThemeProvider } from "@/components/layout/theme-provider";
+import { Toaster } from "@/components/ui/sonner";
 import "./globals.css";
 
 const lato = Lato({
@@ -21,11 +22,13 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={lato.variable}>
+    <html lang="en" className={lato.variable} suppressHydrationWarning>
       <body className="antialiased">
-        <Header />
-        <main className="mx-auto max-w-5xl px-4 py-6">{children}</main>
-        <Toaster position="bottom-right" />
+        <ThemeProvider>
+          <Header />
+          <main className="mx-auto max-w-5xl px-4 py-6 pb-16">{children}</main>
+          <Toaster position="bottom-right" />
+        </ThemeProvider>
       </body>
     </html>
   );

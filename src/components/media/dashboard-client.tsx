@@ -1,12 +1,20 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
+import { Plus } from "lucide-react";
 import { MediaCard } from "./media-card";
+import { CollapsibleSection } from "./collapsible-section";
+import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { SECTION_LABELS, SECTION_ORDER } from "@/lib/constants";
+import {
+  COLLAPSED_SECTIONS,
+  SECTION_HINTS,
+  SECTION_LABELS,
+  SECTION_ORDER,
+} from "@/lib/constants";
 import { getLibrarySection } from "@/lib/library-section";
-import type { TrackedMedia } from "@/types";
-import type { NextEpisodeInfo } from "@/app/page";
+import type { NextEpisodeInfo, TrackedMedia } from "@/types";
 
 const TYPE_FILTERS = [
   { value: "ALL", label: "All" },
@@ -19,9 +27,12 @@ const TYPE_FILTERS = [
 export function DashboardClient({
   initialMedia,
   nextEpisodeMap,
+  schedule,
 }: {
   initialMedia: TrackedMedia[];
   nextEpisodeMap: Record<string, NextEpisodeInfo>;
+  /** Server-rendered "Coming up" block, shown above the library sections. */
+  schedule?: React.ReactNode;
 }) {
   const [typeFilter, setTypeFilter] = useState("ALL");
 
@@ -45,45 +56,81 @@ export function DashboardClient({
     items: filtered.filter((m) => sectionOf(m) === section),
   })).filter((g) => g.items.length > 0);
 
+  const typeCounts = Object.fromEntries(
+    TYPE_FILTERS.map((f) => [
+      f.value,
+      f.value === "ALL"
+        ? initialMedia.length
+        : initialMedia.filter((m) => m.mediaType === f.value).length,
+    ])
+  );
+
+  if (initialMedia.length === 0) {
+    return (
+      <div className="mx-auto max-w-md py-20 text-center">
+        <h1 className="text-2xl font-bold">Your library is empty</h1>
+        <p className="mt-2 text-sm text-muted-foreground">
+          Add anime, manga, TV shows or movies to track what you&apos;ve watched,
+          what&apos;s next, and when new episodes come out.
+        </p>
+        <Button render={<Link href="/search" />} nativeButton={false} className="mt-6" size="lg">
+          <Plus />
+          Add your first title
+        </Button>
+      </div>
+    );
+  }
+
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">My Library</h1>
+    <div className="space-y-8">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <h1 className="text-2xl font-bold">Library</h1>
+          <p className="text-sm text-muted-foreground">
+            {initialMedia.length} title{initialMedia.length === 1 ? "" : "s"} tracked
+          </p>
+        </div>
         <Tabs value={typeFilter} onValueChange={setTypeFilter}>
-          <TabsList>
+          <TabsList className="max-w-full overflow-x-auto overflow-y-hidden [scrollbar-width:none]">
             {TYPE_FILTERS.map((f) => (
-              <TabsTrigger key={f.value} value={f.value} className="text-xs">
+              <TabsTrigger
+                key={f.value}
+                value={f.value}
+                disabled={f.value !== "ALL" && typeCounts[f.value] === 0}
+                className="text-xs"
+              >
                 {f.label}
+                <span className="tabular-nums text-muted-foreground">
+                  {typeCounts[f.value]}
+                </span>
               </TabsTrigger>
             ))}
           </TabsList>
         </Tabs>
       </div>
 
-      {grouped.length === 0 ? (
-        <div className="py-20 text-center text-muted-foreground">
-          <p className="text-lg">No media tracked yet</p>
-          <p className="text-sm mt-1">
-            Search for anime, manga, TV shows, or movies to get started
-          </p>
-        </div>
-      ) : (
-        grouped.map((group) => (
-          <section key={group.status}>
-            <h2 className="text-lg font-semibold mb-3">
-              {group.label}{" "}
-              <span className="text-sm font-normal text-muted-foreground">
-                ({group.items.length})
-              </span>
-            </h2>
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {group.items.map((item) => (
-                <MediaCard key={item.id} media={item} nextEpisode={nextEpisodeMap[item.id]} />
-              ))}
-            </div>
-          </section>
-        ))
-      )}
+      {schedule}
+
+      {grouped.map((group) => (
+        <CollapsibleSection
+          key={group.status}
+          id={`library-${group.status}`}
+          title={group.label}
+          count={group.items.length}
+          hint={SECTION_HINTS[group.status]}
+          defaultOpen={!COLLAPSED_SECTIONS.has(group.status)}
+        >
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {group.items.map((item) => (
+              <MediaCard
+                key={item.id}
+                media={item}
+                nextEpisode={nextEpisodeMap[item.id]}
+              />
+            ))}
+          </div>
+        </CollapsibleSection>
+      ))}
     </div>
   );
 }

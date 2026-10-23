@@ -1,17 +1,22 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { ChevronDown, ChevronLeft, ChevronRight, List } from "lucide-react";
+import { Check, ChevronDown, ChevronLeft, ChevronRight, ListOrdered } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { AVAILABILITY_NOTE, episodeLabel, toSeasonEp, type SeasonInfo } from "@/lib/episodes";
+import { updateTracking } from "@/lib/tracking-client";
+import { cn } from "@/lib/utils";
 import type { EpisodesPageResponse, EpisodeItem } from "@/app/api/media/[id]/episodes/route";
 
 interface EpisodeRowProps {
@@ -19,7 +24,7 @@ interface EpisodeRowProps {
   mediaId: string;
   source: "jikan" | "tmdb" | "unsupported";
   currentEpisode: number;
-  onMarkWatched: (epNumber: number) => void;
+  onSetProgress: (value: number) => void;
 }
 
 function EpisodeRow({
@@ -27,7 +32,7 @@ function EpisodeRow({
   mediaId,
   source,
   currentEpisode,
-  onMarkWatched,
+  onSetProgress,
 }: EpisodeRowProps) {
   const [expanded, setExpanded] = useState(false);
   const [synopsis, setSynopsis] = useState<string | null | undefined>(
@@ -37,9 +42,9 @@ function EpisodeRow({
 
   // For TMDB TV shows use absoluteNumber (cumulative); for anime ep.number is already absolute
   const trackNum = ep.absoluteNumber ?? ep.number;
-  const isCurrentEp = trackNum === currentEpisode + 1; // next episode to watch
-  const isWatched = currentEpisode >= trackNum;         // already watched
-  const isPast = currentEpisode >= trackNum;            // already watched (for styling)
+  const isNext = trackNum === currentEpisode + 1;
+  const isWatched = currentEpisode >= trackNum;
+  const isFuture = ep.airDate ? new Date(ep.airDate) > new Date() : false;
 
   async function toggleExpand() {
     if (expanded) {
@@ -63,109 +68,120 @@ function EpisodeRow({
     }
   }
 
+  const title = ep.title || `Episode ${ep.number}`;
+
   return (
     <div
       data-ep-number={ep.number}
-      className={`border-b last:border-b-0 transition-colors ${
-        isCurrentEp
-          ? "bg-primary/8 border-l-[3px] border-l-primary"
-          : isPast
-          ? "bg-muted/30"
-          : ""
-      }`}
+      className={cn(
+        "border-b last:border-b-0 transition-colors",
+        isNext && "bg-primary/5 shadow-[inset_3px_0_0_var(--primary)]"
+      )}
     >
-      <div
-        className="flex items-start gap-3 px-4 py-3 cursor-pointer hover:bg-muted/50 select-none"
-        onClick={toggleExpand}
-      >
-        {/* Episode number */}
-        <span
-          className={`text-xs font-mono w-8 shrink-0 mt-0.5 ${
-            isCurrentEp
-              ? "text-primary font-bold"
-              : isPast
-              ? "text-muted-foreground"
-              : "text-foreground"
-          }`}
+      <div className="flex items-start gap-2 px-3 py-2.5 sm:px-4">
+        <button
+          type="button"
+          onClick={toggleExpand}
+          aria-expanded={expanded}
+          className="-m-1 flex min-w-0 flex-1 items-start gap-3 rounded-md p-1 text-left hover:bg-muted/60"
         >
-          {ep.number}
-        </span>
-
-        {/* Title + meta */}
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2">
-            <p
-              className={`text-sm leading-snug ${
-                isCurrentEp
-                  ? "font-semibold text-foreground"
-                  : isPast
-                  ? "text-muted-foreground line-through decoration-muted-foreground/40"
-                  : "font-medium"
-              }`}
-            >
-              {ep.title || `Episode ${ep.number}`}
-            </p>
-            {isCurrentEp && (
-              <Badge variant="default" className="text-xs h-4 px-1.5 py-0 shrink-0">
-                Up next
-              </Badge>
+          <span
+            className={cn(
+              "mt-0.5 w-7 shrink-0 font-mono text-xs tabular-nums",
+              isNext ? "font-bold text-foreground" : "text-muted-foreground"
             )}
-          </div>
-          <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
-            {ep.airDate && (
-              <span className="text-xs text-muted-foreground">
-                {new Date(ep.airDate).toLocaleDateString(undefined, {
-                  year: "numeric",
-                  month: "short",
-                  day: "numeric",
-                })}
+          >
+            {ep.number}
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+              <span
+                className={cn(
+                  "text-sm leading-snug",
+                  isNext ? "font-semibold" : isWatched ? "text-muted-foreground" : "font-medium"
+                )}
+              >
+                {title}
               </span>
+              {isNext && <Badge className="h-4 px-1.5 text-[10px]">Up next</Badge>}
+            </span>
+            <span className="mt-0.5 flex flex-wrap items-center gap-1.5">
+              {ep.airDate && (
+                <span className="text-xs text-muted-foreground">
+                  {isFuture ? "Out " : ""}
+                  {new Date(ep.airDate).toLocaleDateString(undefined, {
+                    year: "numeric",
+                    month: "short",
+                    day: "numeric",
+                  })}
+                </span>
+              )}
+              {ep.filler && (
+                <Badge
+                  variant="outline"
+                  className="h-4 border-amber-400 px-1.5 text-[10px] text-amber-600 dark:text-amber-400"
+                >
+                  Filler
+                </Badge>
+              )}
+              {ep.recap && (
+                <Badge
+                  variant="outline"
+                  className="h-4 border-blue-400 px-1.5 text-[10px] text-blue-600 dark:text-blue-400"
+                >
+                  Recap
+                </Badge>
+              )}
+            </span>
+          </span>
+          <ChevronDown
+            className={cn(
+              "mt-0.5 h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200",
+              expanded && "rotate-180"
             )}
-            {ep.filler && (
-              <Badge
-                variant="outline"
-                className="text-xs h-4 px-1.5 py-0 border-amber-400 text-amber-600"
-              >
-                Filler
-              </Badge>
-            )}
-            {ep.recap && (
-              <Badge
-                variant="outline"
-                className="text-xs h-4 px-1.5 py-0 border-blue-400 text-blue-600"
-              >
-                Recap
-              </Badge>
-            )}
-          </div>
-        </div>
+          />
+        </button>
 
-        {/* Mark watched button + expand chevron */}
-        <div className="flex items-center gap-1 shrink-0">
-          {!isWatched && (
+        <div className="flex shrink-0 justify-end sm:w-40">
+          {isWatched ? (
             <Button
               variant="ghost"
               size="sm"
-              className="h-6 text-xs px-2 hover:bg-primary/10 hover:text-primary"
-              onClick={(e) => {
-                e.stopPropagation();
-                onMarkWatched(trackNum);
-              }}
+              className="shrink-0 text-emerald-600 hover:text-muted-foreground dark:text-emerald-400"
+              title="Mark as not watched (also unmarks later episodes)"
+              onClick={() => onSetProgress(trackNum - 1)}
             >
-              Mark
+              <Check />
+              <span className="hidden sm:inline">Watched</span>
+            </Button>
+          ) : (
+            <Button
+              variant={isNext ? "default" : "outline"}
+              size="sm"
+              className="shrink-0"
+              disabled={isFuture}
+              title={
+                isNext
+                  ? "Mark this episode as watched"
+                  : "Mark this and every earlier episode as watched"
+              }
+              onClick={() => onSetProgress(trackNum)}
+            >
+              {isNext ? (
+                "Mark watched"
+              ) : (
+                <>
+                  <span className="sm:hidden">Up to here</span>
+                  <span className="hidden sm:inline">Watched up to here</span>
+                </>
+              )}
             </Button>
           )}
-          <ChevronDown
-            className={`h-4 w-4 text-muted-foreground transition-transform duration-200 ${
-              expanded ? "rotate-180" : ""
-            }`}
-          />
         </div>
       </div>
 
-      {/* Expanded synopsis */}
       {expanded && (
-        <div className="px-4 pb-3 ml-11">
+        <div className="px-4 pb-3 pl-14">
           {loadingSynopsis ? (
             <div className="space-y-1.5">
               <Skeleton className="h-3 w-full" />
@@ -173,16 +189,16 @@ function EpisodeRow({
               <Skeleton className="h-3 w-3/5" />
             </div>
           ) : (
-            <div className={ep.thumbnail ? "flex gap-3 items-start" : ""}>
+            <div className={ep.thumbnail ? "flex flex-col gap-3 sm:flex-row sm:items-start" : ""}>
               {ep.thumbnail && (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
                   src={ep.thumbnail}
-                  alt={ep.title || `Episode ${ep.number}`}
-                  className="w-36 h-20 object-cover rounded shrink-0"
+                  alt={title}
+                  className="h-20 w-36 shrink-0 rounded object-cover"
                 />
               )}
-              <p className="text-xs text-muted-foreground leading-relaxed">
+              <p className="text-xs leading-relaxed text-muted-foreground">
                 {synopsis || "No summary available for this episode."}
               </p>
             </div>
@@ -198,21 +214,10 @@ interface EpisodeListDialogProps {
   mediaTitle: string;
   currentEpisode: number;
   onEpisodeUpdate: (epNumber: number) => void;
-  seasons?: { seasonNumber: number; episodeCount: number }[];
-}
-
-function toSeasonEp(
-  absEp: number,
-  seasons: { seasonNumber: number; episodeCount: number }[]
-): { season: number; episode: number } | null {
-  let cumulative = 0;
-  for (const s of seasons) {
-    if (absEp <= cumulative + s.episodeCount) {
-      return { season: s.seasonNumber, episode: absEp - cumulative };
-    }
-    cumulative += s.episodeCount;
-  }
-  return null;
+  seasons?: SeasonInfo[];
+  /** Controlled mode: when provided, no trigger button is rendered. */
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }
 
 export function EpisodeListDialog({
@@ -221,8 +226,17 @@ export function EpisodeListDialog({
   currentEpisode,
   onEpisodeUpdate,
   seasons,
+  open: openProp,
+  onOpenChange,
 }: EpisodeListDialogProps) {
-  const [open, setOpen] = useState(false);
+  const [openState, setOpenState] = useState(false);
+  const controlled = openProp !== undefined;
+  const open = controlled ? openProp : openState;
+  const setOpen = (next: boolean) => {
+    if (!controlled) setOpenState(next);
+    onOpenChange?.(next);
+  };
+
   const [page, setPage] = useState(1);
   const [data, setData] = useState<EpisodesPageResponse | null>(null);
   const [loading, setLoading] = useState(false);
@@ -240,7 +254,7 @@ export function EpisodeListDialog({
       let jumpPage: number;
       if (seasons?.length) {
         // TMDB: page = season number — jump to the season containing the next episode
-        const se = toSeasonEp(nextEp, seasons);
+        const se = toSeasonEp(nextEp, seasons) ?? toSeasonEp(localCurrentEp, seasons);
         jumpPage = se ? se.season : 1;
       } else {
         // Jikan: 100 episodes per page
@@ -252,23 +266,31 @@ export function EpisodeListDialog({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
+  // Opening fires a fetch for the previous page and then for the jump target;
+  // only the latest request may update state, or a slow stale page wins.
+  const latestRequest = useRef(0);
+
   const fetchEpisodes = useCallback(
     async (p: number) => {
+      const id = ++latestRequest.current;
       setLoading(true);
       setError(null);
       try {
         const res = await fetch(`/api/media/${mediaId}/episodes?page=${p}`);
         if (!res.ok) throw new Error("Failed to load");
         const json: EpisodesPageResponse = await res.json();
+        if (id !== latestRequest.current) return;
         if (json.source === "unsupported") {
           setError("Episode list is not available for this media type.");
         } else {
           setData(json);
         }
       } catch {
-        setError("Failed to load episodes. Please try again.");
+        if (id === latestRequest.current) {
+          setError("Failed to load episodes. Please try again.");
+        }
       } finally {
-        setLoading(false);
+        if (id === latestRequest.current) setLoading(false);
       }
     },
     [mediaId]
@@ -311,58 +333,64 @@ export function EpisodeListDialog({
     setLocalCurrentEp(currentEpisode);
   }, [currentEpisode]);
 
-  async function handleMarkWatched(epNumber: number) {
-    try {
-      const res = await fetch(`/api/media/${mediaId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ currentEpisode: epNumber }),
-      });
-      if (!res.ok) throw new Error("Failed");
-      setLocalCurrentEp(epNumber);
-      onEpisodeUpdate(epNumber);
-    } catch {
-      // no-op
+  async function handleSetProgress(epNumber: number) {
+    const previous = localCurrentEp;
+    setLocalCurrentEp(epNumber);
+    if (!(await updateTracking(mediaId, { currentEpisode: epNumber }))) {
+      setLocalCurrentEp(previous);
+      return;
     }
+    onEpisodeUpdate(epNumber);
+    toast.success(
+      epNumber === 0
+        ? "Progress cleared"
+        : `Progress set to ${episodeLabel(epNumber, seasons)}`,
+      {
+        action: {
+          label: "Undo",
+          onClick: async () => {
+            setLocalCurrentEp(previous);
+            if (await updateTracking(mediaId, { currentEpisode: previous })) {
+              onEpisodeUpdate(previous);
+            }
+          },
+        },
+      }
+    );
   }
+
+  const isTmdb = data?.source === "tmdb";
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger render={<Button variant="outline" size="sm" />}>
-        <List className="h-3.5 w-3.5 mr-1" />
-        Episodes
-      </DialogTrigger>
+      {!controlled && (
+        <DialogTrigger render={<Button variant="outline" />}>
+          <ListOrdered />
+          Browse episodes
+        </DialogTrigger>
+      )}
 
       <DialogContent
-        className="sm:max-w-2xl max-h-[85vh] flex flex-col gap-0 p-0 overflow-hidden"
+        className="flex max-h-[85vh] flex-col gap-0 overflow-hidden p-0 sm:max-w-2xl"
         showCloseButton={true}
       >
-        <DialogHeader className="px-6 pt-5 pb-3 border-b shrink-0">
-          <DialogTitle className="text-base">
-            {mediaTitle} — Episodes
-          </DialogTitle>
-          {data && (
-            <p className="text-xs text-muted-foreground mt-0.5">
-              {data.pagination.pageLabel ||
-                `Page ${data.pagination.currentPage} of ${data.pagination.totalPages}`}
-              {data.source === "jikan" &&
-                ` · ${data.episodes.length} episodes`}
-              {localCurrentEp > 0 && (
-                <span className="ml-2 text-primary font-medium">
-                  · You&apos;re on ep {localCurrentEp}
-                </span>
-              )}
-            </p>
-          )}
+        <DialogHeader className="shrink-0 gap-1 border-b px-4 pt-4 pb-3 pr-12 sm:px-6">
+          <DialogTitle className="text-base">{mediaTitle}</DialogTitle>
+          <DialogDescription className="text-xs">
+            {localCurrentEp > 0
+              ? `You've watched up to ${episodeLabel(localCurrentEp, seasons)}.`
+              : "You haven't marked any episodes yet."}{" "}
+            {AVAILABILITY_NOTE}
+          </DialogDescription>
         </DialogHeader>
 
         {/* Scrollable episode list */}
         <div ref={listRef} className="flex-1 overflow-y-auto">
           {loading && (
-            <div className="p-4 space-y-3">
+            <div className="space-y-3 p-4">
               {Array.from({ length: 10 }).map((_, i) => (
-                <div key={i} className="flex gap-3 items-start">
-                  <Skeleton className="h-4 w-6 mt-0.5" />
+                <div key={i} className="flex items-start gap-3">
+                  <Skeleton className="mt-0.5 h-4 w-6" />
                   <div className="flex-1 space-y-1.5">
                     <Skeleton className="h-4 w-3/4" />
                     <Skeleton className="h-3 w-1/3" />
@@ -373,13 +401,9 @@ export function EpisodeListDialog({
           )}
 
           {!loading && error && (
-            <div className="flex flex-col items-center justify-center py-16 gap-2 text-muted-foreground">
+            <div className="flex flex-col items-center justify-center gap-2 py-16 text-muted-foreground">
               <p className="text-sm">{error}</p>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => fetchEpisodes(page)}
-              >
+              <Button variant="outline" size="sm" onClick={() => fetchEpisodes(page)}>
                 Retry
               </Button>
             </div>
@@ -388,7 +412,7 @@ export function EpisodeListDialog({
           {!loading && !error && data && (
             <div>
               {data.episodes.length === 0 ? (
-                <p className="text-center text-sm text-muted-foreground py-12">
+                <p className="py-12 text-center text-sm text-muted-foreground">
                   No episodes found.
                 </p>
               ) : (
@@ -399,7 +423,7 @@ export function EpisodeListDialog({
                     mediaId={mediaId}
                     source={data.source}
                     currentEpisode={localCurrentEp}
-                    onMarkWatched={handleMarkWatched}
+                    onSetProgress={handleSetProgress}
                   />
                 ))
               )}
@@ -409,21 +433,24 @@ export function EpisodeListDialog({
 
         {/* Pagination footer */}
         {data && data.pagination.totalPages > 1 && (
-          <div className="shrink-0 border-t px-4 py-3 flex items-center justify-between bg-muted/30">
+          <div className="flex shrink-0 items-center justify-between gap-2 border-t bg-muted/30 px-3 py-2.5 sm:px-4">
             <Button
               variant="outline"
               size="sm"
               onClick={() => setPage((p) => p - 1)}
               disabled={data.pagination.currentPage <= 1 || loading}
             >
-              <ChevronLeft className="h-4 w-4 mr-1" />
-              {data.source === "tmdb" ? "Prev Season" : "Prev"}
+              <ChevronLeft />
+              Previous
+              {isTmdb && <span className="hidden sm:inline">season</span>}
             </Button>
 
-            <span className="text-xs text-muted-foreground">
-              {data.source === "tmdb"
-                ? `Season ${data.pagination.currentPage} / ${data.pagination.totalPages}`
-                : `Page ${data.pagination.currentPage} / ${data.pagination.totalPages}`}
+            <span className="text-center text-xs text-muted-foreground">
+              {isTmdb
+                ? `${data.pagination.pageLabel || `Season ${data.pagination.currentPage}`} of ${data.pagination.totalPages}`
+                : `Episodes ${(data.pagination.currentPage - 1) * 100 + 1}–${
+                    (data.pagination.currentPage - 1) * 100 + data.episodes.length
+                  }`}
             </span>
 
             <Button
@@ -432,8 +459,9 @@ export function EpisodeListDialog({
               onClick={() => setPage((p) => p + 1)}
               disabled={!data.pagination.hasNextPage || loading}
             >
-              {data.source === "tmdb" ? "Next Season" : "Next"}
-              <ChevronRight className="h-4 w-4 ml-1" />
+              Next
+              {isTmdb && <span className="hidden sm:inline">season</span>}
+              <ChevronRight />
             </Button>
           </div>
         )}

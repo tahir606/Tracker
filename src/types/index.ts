@@ -38,3 +38,17 @@ export interface TrackedMedia {
     completedAt: string | null;
   } | null;
 }
+
+/** Live TMDB schedule data fetched at request time, overriding the DB snapshot. */
+export type NextEpisodeInfo = {
+  nextAiring: {
+    seasonNumber: number;
+    episodeNumber: number;
+    name: string | null;
+    airDate: string | null;
+  } | null;
+  seasons: { seasonNumber: number; episodeCount: number }[];
+  /** Episodes aired as of this request, not as of when the show was added. */
+  airedEpisodes: number | null;
+  runStatus: string | null;
+};

@@ -4,26 +4,14 @@ import { DashboardClient } from "@/components/media/dashboard-client";
 import { UpcomingEpisodes } from "@/components/media/upcoming-episodes";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getTMDBEpisodeSchedule } from "@/lib/tmdb";
+import type { NextEpisodeInfo } from "@/types";
 
 export const dynamic = "force-dynamic";
-
-export type NextEpisodeInfo = {
-  nextAiring: {
-    seasonNumber: number;
-    episodeNumber: number;
-    name: string | null;
-    airDate: string | null;
-  } | null;
-  seasons: { seasonNumber: number; episodeCount: number }[];
-  /** Episodes aired as of this request, not as of when the show was added. */
-  airedEpisodes: number | null;
-  runStatus: string | null;
-};
 
 function UpcomingSkeleton() {
   return (
     <section className="space-y-3">
-      <Skeleton className="h-6 w-48" />
+      <Skeleton className="h-6 w-40" />
       <div className="rounded-lg border divide-y overflow-hidden">
         {[...Array(3)].map((_, i) => (
           <div key={i} className="flex items-center gap-3 px-4 py-3">
@@ -103,14 +91,14 @@ export default async function DashboardPage() {
   await Promise.allSettled(staleSyncs);
 
   return (
-    <div className="space-y-8">
-      <Suspense fallback={<UpcomingSkeleton />}>
-        <UpcomingEpisodes />
-      </Suspense>
-      <DashboardClient
-        initialMedia={JSON.parse(JSON.stringify(media))}
-        nextEpisodeMap={nextEpisodeMap}
-      />
-    </div>
+    <DashboardClient
+      initialMedia={JSON.parse(JSON.stringify(media))}
+      nextEpisodeMap={nextEpisodeMap}
+      schedule={
+        <Suspense key="schedule" fallback={<UpcomingSkeleton />}>
+          <UpcomingEpisodes />
+        </Suspense>
+      }
+    />
   );
 }

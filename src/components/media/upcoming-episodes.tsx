@@ -2,19 +2,12 @@ import { prisma } from "@/lib/prisma";
 import { getTMDBEpisodeSchedule } from "@/lib/tmdb";
 import { TORRENT_DELAY_DAYS } from "@/lib/release-date";
 import { CalendarDays } from "lucide-react";
+import { AVAILABILITY_NOTE, daysFromToday } from "@/lib/episodes";
 import { EpisodeScheduleList, type ScheduleEntry } from "./episode-schedule-list";
-import { CollapsibleSection } from "./collapsible-section";
 
 // Dates from the schedule are torrent-availability dates, so the windows below
 // run to the shifted date rather than the broadcast date — otherwise an episode
 // that aired today (grabbable tomorrow) falls between both buckets.
-function daysFromToday(dateStr: string): number {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const [y, m, d] = dateStr.split("-").map(Number);
-  const date = new Date(y, m - 1, d);
-  return Math.round((date.getTime() - today.getTime()) / 86_400_000);
-}
 
 export async function UpcomingEpisodes() {
   const tvShows = await prisma.media.findMany({
@@ -67,12 +60,10 @@ export async function UpcomingEpisodes() {
   if (episodes.length === 0) return null;
 
   return (
-    <CollapsibleSection
-      title="Episode Schedule"
-      count={episodes.length}
-      icon={<CalendarDays className="h-5 w-5 text-muted-foreground" />}
-    >
-      <EpisodeScheduleList episodes={episodes} />
-    </CollapsibleSection>
+    <EpisodeScheduleList
+      episodes={episodes}
+      icon={<CalendarDays className="h-4 w-4 text-muted-foreground" />}
+      hint={`TV episodes from the past week and the week ahead. ${AVAILABILITY_NOTE}`}
+    />
   );
 }

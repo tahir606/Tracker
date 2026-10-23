@@ -2,149 +2,160 @@
 
 import { useState } from "react";
 import Image from "next/image";
-import { Plus, Check } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { MEDIA_TYPE_LABELS, STATUS_LABELS } from "@/lib/constants";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { Check, ChevronDown, Plus } from "lucide-react";
 import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { MEDIA_TYPE_LABELS, STATUS_DESCRIPTIONS, STATUS_LABELS, STATUS_ORDER } from "@/lib/constants";
 import type { SearchResult } from "@/types";
 
-export function SearchResultCard({ result }: { result: SearchResult }) {
-  const [added, setAdded] = useState(false);
+export function SearchResultCard({
+  result,
+  libraryId,
+  onAdded,
+}: {
+  result: SearchResult;
+  /** Set when this title is already tracked. */
+  libraryId?: string;
+  onAdded?: (id: string) => void;
+}) {
+  const router = useRouter();
   const [loading, setLoading] = useState(false);
-  const [open, setOpen] = useState(false);
-  const [selectedStatus, setSelectedStatus] = useState("WATCHING");
+  const title = result.titleEnglish || result.title;
 
-  async function handleAdd() {
+  async function handleAdd(status: string) {
     setLoading(true);
     try {
       const res = await fetch("/api/media", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...result,
-          trackingStatus: selectedStatus,
-        }),
+        body: JSON.stringify({ ...result, trackingStatus: status }),
       });
-
       if (!res.ok) throw new Error("Failed");
-
-      setAdded(true);
-      setOpen(false);
-      toast.success(`Added "${result.titleEnglish || result.title}" to your library`);
+      const media = await res.json();
+      onAdded?.(media.id);
+      toast.success(`Added ${title} to ${STATUS_LABELS[status]}`, {
+        action: {
+          label: "Open",
+          onClick: () => router.push(`/media/${media.id}`),
+        },
+      });
     } catch {
-      toast.error("Failed to add");
+      toast.error(`Couldn't add ${title}. Try again.`);
     } finally {
       setLoading(false);
     }
   }
 
+  const meta = [
+    MEDIA_TYPE_LABELS[result.mediaType],
+    result.releaseYear,
+    result.totalEpisodes && result.mediaType !== "MOVIE" ? `${result.totalEpisodes} eps` : null,
+    result.totalChapters ? `${result.totalChapters} ch` : null,
+  ].filter(Boolean);
+
   return (
-    <Card className="overflow-hidden">
+    <Card className="gap-0 p-0">
       <div className="flex gap-3 p-3">
         {result.coverImage ? (
           <Image
             src={result.coverImage}
-            alt={result.title}
-            width={80}
-            height={120}
-            className="rounded-md object-cover shrink-0"
-            style={{ width: 80, height: 120 }}
+            alt=""
+            width={72}
+            height={108}
+            className="shrink-0 rounded-md object-cover"
+            style={{ width: 72, height: 108 }}
           />
         ) : (
-          <div className="flex h-[120px] w-[80px] shrink-0 items-center justify-center rounded-md bg-muted text-xs text-muted-foreground">
-            No Image
+          <div className="flex h-[108px] w-[72px] shrink-0 items-center justify-center rounded-md bg-muted text-xs text-muted-foreground">
+            No image
           </div>
         )}
 
-        <CardContent className="flex flex-1 flex-col gap-1.5 p-0">
+        <div className="flex min-w-0 flex-1 flex-col gap-1.5">
           <div>
-            <p className="font-medium text-sm leading-tight line-clamp-2">
-              {result.titleEnglish || result.title}
-            </p>
+            <p className="line-clamp-2 text-sm font-medium leading-tight">{title}</p>
             {result.titleEnglish && result.titleEnglish !== result.title && (
-              <p className="text-xs text-muted-foreground line-clamp-1">
-                {result.title}
-              </p>
+              <p className="line-clamp-1 text-xs text-muted-foreground">{result.title}</p>
             )}
-            <p className="text-xs text-muted-foreground mt-0.5">
-              {MEDIA_TYPE_LABELS[result.mediaType]}
-              {result.releaseYear ? ` · ${result.releaseYear}` : ""}
-              {result.totalEpisodes ? ` · ${result.totalEpisodes} eps` : ""}
-              {result.totalChapters ? ` · ${result.totalChapters} ch` : ""}
-            </p>
+            <p className="mt-0.5 text-xs text-muted-foreground">{meta.join(" · ")}</p>
           </div>
 
           {result.description && (
-            <p className="text-xs text-muted-foreground line-clamp-2">
-              {result.description}
-            </p>
+            <p className="line-clamp-2 text-xs text-muted-foreground">{result.description}</p>
           )}
 
-          <div className="mt-auto">
-            {added ? (
-              <Button size="sm" variant="ghost" disabled className="h-7 text-xs">
-                <Check className="h-3 w-3 mr-1" /> Added
-              </Button>
-            ) : (
-              <Dialog open={open} onOpenChange={setOpen}>
-                <DialogTrigger
-                  render={<Button size="sm" variant="outline" className="h-7 text-xs" />}
+          <div className="mt-auto pt-1">
+            {libraryId ? (
+              <div className="flex items-center gap-2">
+                <span className="flex items-center gap-1 text-xs font-medium text-emerald-600 dark:text-emerald-400">
+                  <Check className="h-3.5 w-3.5" /> In your library
+                </span>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  render={<Link href={`/media/${libraryId}`} />}
+                  nativeButton={false}
                 >
-                  <Plus className="h-3 w-3 mr-1" /> Add to List
-                </DialogTrigger>
-                <DialogContent className="sm:max-w-sm">
-                  <DialogHeader>
-                    <DialogTitle className="text-base">
-                      Add &quot;{result.titleEnglish || result.title}&quot;
-                    </DialogTitle>
-                  </DialogHeader>
-                  <div className="space-y-3 pt-2">
-                    <div>
-                      <label className="text-sm font-medium">Status</label>
-                      <Select
-                        value={selectedStatus}
-                        onValueChange={(val) => { if (val) setSelectedStatus(val); }}
-                      >
-                        <SelectTrigger className="mt-1">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {Object.entries(STATUS_LABELS).map(([key, label]) => (
-                            <SelectItem key={key} value={key}>
-                              {label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <Button
-                      onClick={handleAdd}
-                      disabled={loading}
-                      className="w-full"
-                    >
-                      {loading ? "Adding..." : "Add to Library"}
-                    </Button>
-                  </div>
-                </DialogContent>
-              </Dialog>
+                  Open
+                </Button>
+              </div>
+            ) : (
+              <div className="flex">
+                <Button
+                  size="sm"
+                  className="rounded-r-none"
+                  onClick={() => handleAdd("WATCHING")}
+                  disabled={loading}
+                >
+                  <Plus />
+                  {loading ? "Adding…" : "Add"}
+                </Button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger
+                    render={
+                      <Button
+                        size="icon-sm"
+                        className="rounded-l-none border-l border-l-primary-foreground/20"
+                        disabled={loading}
+                        aria-label="Add with a different status"
+                      />
+                    }
+                  >
+                    <ChevronDown />
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="start" className="w-60">
+                    <DropdownMenuGroup>
+                      <DropdownMenuLabel>Add to…</DropdownMenuLabel>
+                      {STATUS_ORDER.filter((s) => s !== "DROPPED").map((s) => (
+                        <DropdownMenuItem
+                          key={s}
+                          onClick={() => handleAdd(s)}
+                          className="flex-col items-start gap-0"
+                        >
+                          <span>{STATUS_LABELS[s]}</span>
+                          <span className="text-xs text-muted-foreground">
+                            {STATUS_DESCRIPTIONS[s]}
+                          </span>
+                        </DropdownMenuItem>
+                      ))}
+                    </DropdownMenuGroup>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
             )}
           </div>
-        </CardContent>
+        </div>
       </div>
     </Card>
   );
