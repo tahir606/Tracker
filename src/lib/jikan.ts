@@ -1,8 +1,12 @@
-const JIKAN_BASE = "https://api.jikan.moe/v4";
+/**
+ * MyAnimeList data through a Jikan-v4-compatible API. The public Jikan API
+ * (api.jikan.moe) shut down on 2026-10-01; Tenrai serves the same v4 schema.
+ */
+const JIKAN_BASE = "https://api.tenrai.org/v1";
 
 /**
- * Jikan is an unofficial, volunteer-run API and goes down now and then. Fail
- * fast so callers can fall back instead of hanging on the default timeout.
+ * Community-run API with per-IP rate limits. Fail fast so callers can fall
+ * back to AniList instead of hanging on the default timeout.
  */
 const JIKAN_TIMEOUT_MS = 5000;
 
@@ -32,6 +36,8 @@ export interface JikanEpisode {
   aired: string | null;
   filler: boolean;
   recap: boolean;
+  /** Included in list responses by Tenrai; Jikan only had it per episode. */
+  synopsis?: string | null;
 }
 
 export interface JikanEpisodesResponse {
@@ -39,8 +45,8 @@ export interface JikanEpisodesResponse {
   pagination: {
     last_visible_page: number;
     has_next_page: boolean;
-    current_page: number;
-    items: { count: number; total: number; per_page: number };
+    current_page?: number;
+    items?: { count: number; total: number; per_page: number };
   };
 }
 

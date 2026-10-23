@@ -43,8 +43,8 @@ export async function GET(
       return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
 
-    // Anime from AniList — use Jikan via MAL ID for titles, filler and recap
-    // flags, falling back to AniList's own (sparser) data when Jikan is down.
+    // Anime from AniList — use MyAnimeList data (Tenrai, via MAL ID) for titles,
+    // filler and recap flags, falling back to AniList's own (sparser) data when Jikan is down.
     if (media.source === "anilist" && media.mediaType === "ANIME") {
       const anilistId = parseInt(media.externalId);
       const malId = await getAniListMalId(anilistId);
@@ -58,7 +58,8 @@ export async function GET(
             airDate: toAvailableDate(ep.aired),
             filler: ep.filler,
             recap: ep.recap,
-            synopsis: null, // loaded lazily via /episodes/[epNumber]
+            // null means "not loaded" — the dialog fetches it via /episodes/[epNumber]
+            synopsis: ep.synopsis ?? null,
           }));
 
           const response: EpisodesPageResponse = {
@@ -74,7 +75,7 @@ export async function GET(
 
           return NextResponse.json(response);
         } catch (error) {
-          console.warn("Jikan unavailable, falling back to AniList:", error);
+          console.warn("MyAnimeList (Tenrai) unavailable, falling back to AniList:", error);
         }
       }
 
